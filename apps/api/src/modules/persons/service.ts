@@ -1,4 +1,4 @@
-import { addMonths, fromCents, installmentMonths, occursIn, splitInstallments, toCents, type PersonLineDto } from "@finanzas/shared";
+import { addMonths, fromCents, installmentMonths, occursIn, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
 import { currentMonth, num } from "../../lib.js";
 import { loadRecurring, myCents } from "../recurring/service.js";
@@ -67,4 +67,20 @@ export async function reimbursementCategoryId(): Promise<string> {
   const byName = await prisma.category.findUnique({ where: { name_type: { name: "Reintegros", type: "INCOME" } } });
   if (byName) return (await prisma.category.update({ where: { id: byName.id }, data: { isReimbursement: true } })).id;
   return (await prisma.category.create({ data: { name: "Reintegros", type: "INCOME", isReimbursement: true } })).id;
+}
+
+/** Saldo de cada persona al mes `asOf`: devengado hasta ese mes − pagos recibidos. */
+export async function personsSummary(asOf: string): Promise<PersonSummaryDto[]> {
+  const [persons, rows, payments] = await Promise.all([
+    prisma.person.findMany({ orderBy: { name: "asc" } }),
+    accruals(),
+    prisma.personPayment.groupBy({ by: ["personId"], _sum: { amount: true } }),
+  ]);
+  return persons.map((p): PersonSummaryDto => {
+    const mine = rows.filter((r) => r.personId === p.id);
+    const accrued = mine.filter((r) => r.month <= asOf).reduce((a, r) => a + r.cents, 0);
+    const upcoming = mine.filter((r) => r.month > asOf).reduce((a, r) => a + r.cents, 0);
+    const paid = toCents(num(payments.find((x) => x.personId === p.id)?._sum.amount));
+    return { personId: p.id, name: p.name, accrued: fromCents(accrued), paid: fromCents(paid), balance: fromCents(accrued - paid), upcoming: fromCents(upcoming) };
+  });
 }

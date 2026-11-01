@@ -26,7 +26,10 @@ export function Month() {
           <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
           <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
         </div>
-        {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Movimiento</button>}
+        <div className="flex items-center gap-2">
+          <a className="rounded bg-white px-3 py-1.5 text-sm shadow" href={`/api/export/transactions.csv?from=${month}`} download>Exportar CSV</a>
+          {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Movimiento</button>}
+        </div>
       </div>
 
       <section className="grid grid-cols-3 gap-3 text-center">

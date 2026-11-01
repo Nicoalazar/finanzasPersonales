@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { Dashboard } from "./pages/Dashboard";
 import { Cards } from "./pages/Cards";
 import { Investments } from "./pages/Investments";
 import { Salary } from "./pages/Salary";
@@ -24,7 +25,8 @@ function Root() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Month />} />
+        <Route index element={<Dashboard />} />
+        <Route path="mes" element={<Month />} />
         <Route path="tarjetas" element={<Cards />} />
         <Route path="inversiones" element={<Investments />} />
         <Route path="sueldos" element={<Salary />} />

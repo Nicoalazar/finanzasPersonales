@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.0",

@@ -17,3 +17,21 @@ export function monthLabel(ym: string): string {
 }
 
 export const formatDay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+const compact = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
+/** Para ejes y etiquetas: 0 / 500 mil / 1,5 M */
+export const formatCompact = (n: number) => compact.format(n);
+
+/** "ene", y "ene 26" cuando hace falta ubicar el año. */
+export function monthShort(ym: string, withYear = false): string {
+  const [y, m] = ym.split("-").map(Number) as [number, number];
+  const s = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-AR", { month: "short", timeZone: "UTC" }).replace(".", "");
+  return withYear ? `${s} ${String(y).slice(2)}` : s;
+}
+
+/** Máximo "redondo" para el eje, con escalones finos para no desperdiciar espacio. */
+export function niceMax(v: number): number {
+  if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((m) => m * p >= v) ?? 10) * p;
+}

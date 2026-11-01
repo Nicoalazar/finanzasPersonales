@@ -10,7 +10,8 @@ export function Layout() {
     <div className="mx-auto max-w-4xl px-4 pb-16">
       <header className="flex flex-wrap items-center justify-between gap-2 py-4">
         <nav className="flex flex-wrap gap-1">
-          <NavLink to="/" end className={link}>Mes</NavLink>
+          <NavLink to="/" end className={link}>Resumen</NavLink>
+          <NavLink to="/mes" className={link}>Mes</NavLink>
           <NavLink to="/tarjetas" className={link}>Tarjetas</NavLink>
           <NavLink to="/inversiones" className={link}>Inversiones</NavLink>
           <NavLink to="/sueldos" className={link}>Sueldos</NavLink>

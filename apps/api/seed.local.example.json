@@ -1,0 +1,11 @@
+{
+  "accounts": [
+    { "name": "Banco", "kind": "BANK", "initialBalance": 0 },
+    { "name": "Brubank", "kind": "INVESTMENT" }
+  ],
+  "cards": [
+    { "name": "Visa", "closingDay": 25, "dueDay": 5 },
+    { "name": "AmEx", "closingDay": 20, "dueDay": 1 }
+  ],
+  "persons": ["Persona 1", "Persona 2"]
+}

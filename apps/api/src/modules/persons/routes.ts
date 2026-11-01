@@ -6,7 +6,7 @@ import {
 import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
-import { accruals, reimbursementCategoryId } from "./service.js";
+import { accruals, personsSummary, reimbursementCategoryId } from "./service.js";
 
 const currentMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 7);
 
@@ -30,19 +30,7 @@ export async function personRoutes(app: FastifyInstance) {
   app.get("/api/persons/summary", async (req, reply) => {
     const q = parse(asOfQuery, req.query, reply);
     if (!q) return;
-    const asOf = q.asOf ?? currentMonth();
-    const [persons, rows, payments] = await Promise.all([
-      prisma.person.findMany({ orderBy: { name: "asc" } }),
-      accruals(),
-      prisma.personPayment.groupBy({ by: ["personId"], _sum: { amount: true } }),
-    ]);
-    return persons.map((p): PersonSummaryDto => {
-      const mine = rows.filter((r) => r.personId === p.id);
-      const accrued = mine.filter((r) => r.month <= asOf).reduce((a, r) => a + r.cents, 0);
-      const upcoming = mine.filter((r) => r.month > asOf).reduce((a, r) => a + r.cents, 0);
-      const paid = toCents(num(payments.find((x) => x.personId === p.id)?._sum.amount));
-      return { personId: p.id, name: p.name, accrued: fromCents(accrued), paid: fromCents(paid), balance: fromCents(accrued - paid), upcoming: fromCents(upcoming) };
-    });
+    return personsSummary(q.asOf ?? currentMonth());
   });
 
   app.get<{ Params: { id: string } }>("/api/persons/:id", async (req, reply) => {

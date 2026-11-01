@@ -292,3 +292,33 @@ export interface InvestmentsDto {
   /** plata invertida por mes (depósitos − retiros) para el dashboard */
   byMonth: { month: string; deposits: number; withdrawals: number; net: number }[];
 }
+
+// ---- Dashboard y exportación ----
+export const dashboardQuery = z.object({ month: yearMonth, months: z.coerce.number().int().min(3).max(36).default(12) });
+export const exportQuery = z.object({ from: yearMonth, to: yearMonth.optional() });
+
+export interface DashboardSeriesPoint {
+  month: string; income: number;
+  /** pagos de resúmenes de tarjeta / movimientos de recurrentes / el resto de los gastos */
+  cards: number; recurring: number; other: number;
+  expense: number; reimbursements: number; netExpense: number; balance: number;
+  /** resultado acumulado desde el primer mes del rango */
+  cumulativeBalance: number;
+  /** depósitos − retiros de cuentas de inversión */
+  invested: number;
+}
+export interface DashboardDto {
+  month: string;
+  kpis: {
+    income: number; expense: number; reimbursements: number; netExpense: number; balance: number;
+    /** gasto neto / ingresos (%) */ expenseRatio: number | null;
+    /** resultado / ingresos (%) */ savingsRate: number | null;
+    /** neto propio de los resúmenes de tarjeta del mes (sin lo de terceros ni reintegros) y su relación con el ingreso (%) */
+    cardNet: number; cardRatio: number | null;
+  };
+  netWorth: { cash: number; investments: number; total: number };
+  series: DashboardSeriesPoint[];
+  categories: { categoryId: string | null; name: string; amount: number; pct: number }[];
+  budgets: { totals: BudgetsDto["totals"]; flagged: BudgetRowDto[] };
+  debtors: PersonSummaryDto[];
+}

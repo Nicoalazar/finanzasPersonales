@@ -130,3 +130,9 @@ export const useDeleteSnapshot = () => useInvalidatingMutation((id: string) => a
 export const useAddInvestmentMovement = () =>
   useInvalidatingMutation((v: { accountId: string; kind: "DEPOSIT" | "WITHDRAWAL"; otherAccountId: string; date: string; amount: number }) =>
     api("/investments/movements", { method: "POST", json: v }));
+
+// ---- Dashboard ----
+import type { DashboardDto } from "@finanzas/shared";
+
+export const useDashboard = (month: string, months: number) =>
+  useQuery({ queryKey: ["dashboard", month, months], queryFn: () => api<DashboardDto>(`/dashboard?month=${month}&months=${months}`) });

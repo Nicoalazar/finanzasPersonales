@@ -12,6 +12,8 @@ import { accountRoutes } from "./modules/accounts/routes.js";
 import { categoryRoutes } from "./modules/categories/routes.js";
 import { cardRoutes } from "./modules/cards/routes.js";
 import { budgetRoutes } from "./modules/budgets/routes.js";
+import { dashboardRoutes } from "./modules/dashboard/routes.js";
+import { exportRoutes } from "./modules/export/routes.js";
 import { investmentRoutes } from "./modules/investments/routes.js";
 import { payslipRoutes } from "./modules/payslips/routes.js";
 import { recurringRoutes } from "./modules/recurring/routes.js";
@@ -38,6 +40,8 @@ export async function buildApp() {
   await app.register(budgetRoutes);
   await app.register(payslipRoutes);
   await app.register(investmentRoutes);
+  await app.register(dashboardRoutes);
+  await app.register(exportRoutes);
 
   // En producción el mismo servicio sirve el front compilado (SPA).
   const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web/dist");

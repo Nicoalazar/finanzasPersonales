@@ -7,3 +7,13 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]), select:not(:
   cursor: pointer;
 }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* Paleta categórica validada (azul, naranja, aqua) para los gráficos */
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --chart-ink: #334155;
+  --chart-grid: #e2e8f0;
+  --chart-surface: #ffffff;
+}
