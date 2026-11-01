@@ -10,6 +10,8 @@ import { prisma } from "./plugins/db.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
 import { categoryRoutes } from "./modules/categories/routes.js";
+import { cardRoutes } from "./modules/cards/routes.js";
+import { personRoutes } from "./modules/persons/routes.js";
 import { transactionRoutes } from "./modules/transactions/routes.js";
 
 export async function buildApp() {
@@ -26,6 +28,8 @@ export async function buildApp() {
   await app.register(accountRoutes);
   await app.register(categoryRoutes);
   await app.register(transactionRoutes);
+  await app.register(personRoutes);
+  await app.register(cardRoutes);
 
   // En producción el mismo servicio sirve el front compilado (SPA).
   const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web/dist");

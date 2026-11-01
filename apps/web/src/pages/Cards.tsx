@@ -1,0 +1,181 @@
+import { useEffect, useState, type FormEvent } from "react";
+import type { CardDto, StatementDto } from "@finanzas/shared";
+import { PurchaseForm } from "../components/PurchaseForm";
+import { currentMonth, formatMoney, monthLabel, shiftMonth, today } from "../lib/format";
+import {
+  useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
+} from "../lib/queries";
+
+const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
+
+function NewCardForm({ onDone }: { onDone: () => void }) {
+  const create = useCreateCard();
+  const [f, setF] = useState({ name: "", closingDay: "25", dueDay: "5" });
+  const [error, setError] = useState("");
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await create.mutateAsync({ name: f.name, closingDay: Number(f.closingDay), dueDay: Number(f.dueDay) });
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    }
+  };
+  return (
+    <form onSubmit={submit} className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow">
+      <input className={field} placeholder="Nombre (ej. Visa)" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required />
+      <label className="text-xs text-slate-500">Cierre <input className={`${field} w-16`} type="number" min={1} max={31} value={f.closingDay} onChange={(e) => setF({ ...f, closingDay: e.target.value })} /></label>
+      <label className="text-xs text-slate-500">Vence <input className={`${field} w-16`} type="number" min={1} max={31} value={f.dueDay} onChange={(e) => setF({ ...f, dueDay: e.target.value })} /></label>
+      <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Crear</button>
+      <button type="button" className="text-sm text-slate-500" onClick={onDone}>Cancelar</button>
+      {error && <span className="text-sm text-red-600">{error}</span>}
+    </form>
+  );
+}
+
+function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; month: string }) {
+  const accounts = useAccounts().data?.filter((a) => !a.archived) ?? [];
+  const patch = usePatchStatement(card.id);
+  const pay = usePayStatement(card.id);
+  const unpay = useUnpayStatement(card.id);
+  const delPurchase = useDeletePurchase();
+  const [adjustment, setAdjustment] = useState(String(st.adjustment));
+  const [refunds, setRefunds] = useState(String(st.refunds));
+  const [accountId, setAccountId] = useState(card.payAccountId ?? "");
+  const [payDate, setPayDate] = useState(today());
+  const [error, setError] = useState("");
+  useEffect(() => { setAdjustment(String(st.adjustment)); setRefunds(String(st.refunds)); }, [st.adjustment, st.refunds]);
+
+  const guard = async (fn: () => Promise<unknown>) => {
+    setError("");
+    try { await fn(); } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+  };
+  const row = "flex justify-between px-4 py-1.5 text-sm";
+
+  return (
+    <section className="space-y-3">
+      <div className="divide-y rounded-xl bg-white shadow">
+        {st.items.length === 0 && <p className="p-4 text-sm text-slate-500">No hay cuotas en este resumen.</p>}
+        {st.items.map((i) => (
+          <div key={i.installmentId} className="flex items-center gap-3 px-4 py-2">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm">{i.description}</div>
+              <div className="text-xs text-slate-500">
+                Cuota {i.number}/{i.count}
+                {i.shares.map((s) => ` · ${s.name} ${formatMoney(s.amount)}`).join("")}
+              </div>
+            </div>
+            <span className="text-sm font-medium">{formatMoney(i.amount)}</span>
+            <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar compra" title="Eliminar la compra completa"
+              onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && delPurchase.mutate(i.purchaseId)}>✕</button>
+          </div>
+        ))}
+      </div>
+
+      <div className="divide-y rounded-xl bg-white shadow">
+        <div className={row}><span>Subtotal</span><span>{formatMoney(st.subtotal)}</span></div>
+        <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰</span><span>{formatMoney(st.stampTax)}</span></div>
+        <div className={`${row} items-center`}>
+          <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
+          <input id="adj" className={`${field} w-32 text-right`} inputMode="decimal" value={adjustment} disabled={!!st.paidAt}
+            onChange={(e) => setAdjustment(e.target.value)} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
+        </div>
+        <div className={`${row} font-semibold`}><span>Total del resumen</span><span>{formatMoney(st.total)}</span></div>
+        <div className={row}><span>Corresponde a terceros</span><span>− {formatMoney(st.thirdParty)}</span></div>
+        <div className={`${row} items-center`}>
+          <label htmlFor="ref">Reintegros</label>
+          <input id="ref" className={`${field} w-32 text-right`} inputMode="decimal" value={refunds} disabled={!!st.paidAt}
+            onChange={(e) => setRefunds(e.target.value)} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
+        </div>
+        <div className={`${row} font-semibold text-rose-600`}><span>Neto propio</span><span>{formatMoney(st.netOwn)}</span></div>
+      </div>
+
+      {st.byPerson.length > 0 && (
+        <div className="rounded-xl bg-white p-4 text-sm shadow">
+          <div className="mb-1 text-xs font-medium text-slate-500">Te deben este resumen</div>
+          {st.byPerson.map((p) => <div key={p.personId} className="flex justify-between"><span>{p.name}</span><span>{formatMoney(p.amount)}</span></div>)}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-4 shadow">
+        {st.paidAt ? (
+          <>
+            <span className="text-sm text-emerald-700">Pagado el {st.paidAt}</span>
+            <button className="text-sm text-slate-500 underline" onClick={() => confirm("¿Deshacer el pago? Se elimina el movimiento.") && guard(() => unpay.mutateAsync(month))}>Deshacer</button>
+          </>
+        ) : (
+          <>
+            <select className={field} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">Cuenta de pago</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+            <input className={field} type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" disabled={st.total <= 0 || pay.isPending}
+              onClick={() => guard(() => pay.mutateAsync({ month, date: payDate, accountId: accountId || undefined }))}>
+              Pagar {formatMoney(st.total)}
+            </button>
+          </>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
+      </div>
+    </section>
+  );
+}
+
+export function Cards() {
+  const cards = useCards().data ?? [];
+  const [cardId, setCardId] = useState<string>();
+  const [month, setMonth] = useState(currentMonth());
+  const [adding, setAdding] = useState(false);
+  const [newCard, setNewCard] = useState(false);
+  const card = cards.find((c) => c.id === cardId) ?? cards[0];
+  const st = useStatement(card?.id, month).data;
+  const commitments = useCommitments(currentMonth()).data ?? [];
+  const nameOf = (id: string) => cards.find((c) => c.id === id)?.name ?? "?";
+
+  return (
+    <main className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {cards.map((c) => (
+          <button key={c.id} onClick={() => setCardId(c.id)} className={`rounded px-3 py-1.5 text-sm ${c.id === card?.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{c.name}</button>
+        ))}
+        {!newCard && <button className="rounded bg-white px-3 py-1.5 text-sm shadow" onClick={() => setNewCard(true)}>+ Tarjeta</button>}
+      </div>
+      {newCard && <NewCardForm onDone={() => setNewCard(false)} />}
+
+      {!card ? (
+        <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Creá tu primera tarjeta para empezar a cargar compras en cuotas.</p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
+              <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
+              <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
+            </div>
+            {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Compra</button>}
+          </div>
+          <p className="-mt-2 text-xs text-slate-500">Cierra el día {card.closingDay} · vence el día {card.dueDay}</p>
+          {adding && <PurchaseForm card={card} onDone={() => setAdding(false)} />}
+          {st && <StatementView key={`${card.id}-${month}`} card={card} st={st} month={month} />}
+        </>
+      )}
+
+      {commitments.some((m) => m.total > 0) && (
+        <section>
+          <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses</h2>
+          <div className="divide-y rounded-xl bg-white shadow">
+            {commitments.map((m) => (
+              <div key={m.month} className="flex items-baseline justify-between px-4 py-2 text-sm">
+                <span>{monthLabel(m.month)}</span>
+                <span className="text-xs text-slate-500">{m.byCard.map((c) => `${nameOf(c.cardId)} ${formatMoney(c.total)}`).join(" · ")}</span>
+                <span className="font-medium">{formatMoney(m.total)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}

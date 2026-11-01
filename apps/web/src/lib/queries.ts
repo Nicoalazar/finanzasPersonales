@@ -8,7 +8,7 @@ export const useTransactions = (month: string) =>
   useQuery({ queryKey: ["transactions", month], queryFn: () => api<{ items: TransactionDto[]; summary: MonthSummaryDto }>(`/transactions?month=${month}`) });
 
 /** Ejecuta una mutación y refresca todo lo que depende de movimientos/cuentas/categorías. */
-function useInvalidatingMutation<V>(fn: (v: V) => Promise<unknown>) {
+function useInvalidatingMutation<V, R = unknown>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries() });
 }
@@ -20,3 +20,25 @@ export const useDeleteTransaction = () => useInvalidatingMutation((id: string) =
 export const useCreateAccount = () => useInvalidatingMutation((v: { name: string; kind: string; initialBalance: number }) => api("/accounts", { method: "POST", json: v }));
 export const useCreateCategory = () => useInvalidatingMutation((v: { name: string; type: string }) => api("/categories", { method: "POST", json: v }));
 export const useDeleteCategory = () => useInvalidatingMutation((id: string) => api(`/categories/${id}`, { method: "DELETE" }));
+
+// ---- Tarjetas ----
+import type { CardDto, CommitmentDto, PersonDto, PurchaseInput, StatementDto } from "@finanzas/shared";
+
+export const useCards = () => useQuery({ queryKey: ["cards"], queryFn: () => api<CardDto[]>("/cards") });
+export const usePersons = () => useQuery({ queryKey: ["persons"], queryFn: () => api<PersonDto[]>("/persons") });
+export const useStatement = (cardId: string | undefined, month: string) =>
+  useQuery({ queryKey: ["statement", cardId, month], enabled: !!cardId, queryFn: () => api<StatementDto>(`/cards/${cardId}/statement?month=${month}`) });
+export const useCommitments = (from: string) =>
+  useQuery({ queryKey: ["commitments", from], queryFn: () => api<CommitmentDto[]>(`/cards/commitments?from=${from}&months=12`) });
+
+export const useCreateCard = () =>
+  useInvalidatingMutation((v: { name: string; closingDay: number; dueDay: number }) => api("/cards", { method: "POST", json: v }));
+export const useCreatePerson = () => useInvalidatingMutation<string, PersonDto>((name: string) => api<PersonDto>("/persons", { method: "POST", json: { name } }));
+export const useCreatePurchase = () => useInvalidatingMutation((v: Partial<PurchaseInput>) => api("/card-purchases", { method: "POST", json: v }));
+export const useDeletePurchase = () => useInvalidatingMutation((id: string) => api(`/card-purchases/${id}`, { method: "DELETE" }));
+export const usePatchStatement = (cardId: string) =>
+  useInvalidatingMutation((v: { month: string; adjustment?: number; refunds?: number }) => api(`/cards/${cardId}/statement`, { method: "PATCH", json: v }));
+export const usePayStatement = (cardId: string) =>
+  useInvalidatingMutation((v: { month: string; date: string; accountId?: string }) => api(`/cards/${cardId}/statement/pay`, { method: "POST", json: v }));
+export const useUnpayStatement = (cardId: string) =>
+  useInvalidatingMutation((month: string) => api(`/cards/${cardId}/statement/pay?month=${month}`, { method: "DELETE" }));

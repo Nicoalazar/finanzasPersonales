@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { Cards } from "./pages/Cards";
 import { Month } from "./pages/Month";
 import { Settings } from "./pages/Settings";
 import "./index.css";
@@ -19,6 +20,7 @@ function Root() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Month />} />
+        <Route path="tarjetas" element={<Cards />} />
         <Route path="config" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

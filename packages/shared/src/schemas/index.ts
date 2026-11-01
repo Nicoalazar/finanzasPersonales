@@ -70,3 +70,65 @@ export interface TransactionDto {
   description: string; categoryId: string | null; accountId: string; toAccountId: string | null;
 }
 export interface MonthSummaryDto { income: number; expense: number; balance: number }
+
+// ---- Tarjetas ----
+export const cardInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  closingDay: z.number().int().min(1).max(31),
+  dueDay: z.number().int().min(1).max(31),
+  stampTaxRate: z.number().min(0).max(1).default(0.007),
+  isThirdParty: z.boolean().default(false),
+  payAccountId: z.string().nullable().optional(),
+});
+export const cardPatch = cardInput.partial();
+
+export const personInput = z.object({ name: z.string().trim().min(1).max(80) });
+
+export const shareMode = z.enum(["PERCENT", "AMOUNT"]);
+export const shareInput = z.object({
+  personId: z.string().min(1),
+  mode: shareMode,
+  value: z.number().positive(),
+});
+export const purchaseInput = z
+  .object({
+    cardId: z.string().min(1),
+    date: isoDate,
+    description: z.string().trim().min(1).max(200),
+    categoryId: z.string().nullable().optional(),
+    totalAmount: z.number().finite().positive(),
+    installmentCount: z.number().int().min(1).max(60).default(1),
+    firstStatementMonth: yearMonth.optional(),
+    shares: z.array(shareInput).default([]),
+  })
+  .refine((p) => p.shares.every((s) => s.mode !== "PERCENT" || s.value <= 100), { message: "Un porcentaje no puede superar 100", path: ["shares"] })
+  .refine(
+    (p) => p.shares.filter((s) => s.mode === "PERCENT").reduce((a, s) => a + s.value, 0) <= 100,
+    { message: "Los porcentajes repartidos superan 100", path: ["shares"] },
+  );
+export const statementQuery = z.object({ month: yearMonth });
+export const statementPatch = z.object({ month: yearMonth, adjustment: z.number().finite().optional(), refunds: z.number().finite().min(0).optional() });
+export const statementPay = z.object({ month: yearMonth, date: isoDate, accountId: z.string().optional() });
+
+export type CardInput = z.infer<typeof cardInput>;
+export type PurchaseInput = z.infer<typeof purchaseInput>;
+
+export interface CardDto { id: string; name: string; closingDay: number; dueDay: number; stampTaxRate: number; isThirdParty: boolean; payAccountId: string | null }
+export interface PersonDto { id: string; name: string }
+export interface PurchaseDto {
+  id: string; cardId: string; date: string; description: string; categoryId: string | null; totalAmount: number;
+  installmentCount: number; firstStatementMonth: string; lastStatementMonth: string;
+  shares: { personId: string; mode: "PERCENT" | "AMOUNT"; value: number }[];
+}
+export interface StatementItemDto {
+  installmentId: string; purchaseId: string; description: string; number: number; count: number; amount: number;
+  thirdParty: number; shares: { personId: string; name: string; amount: number }[];
+}
+export interface StatementDto {
+  cardId: string; month: string; items: StatementItemDto[];
+  subtotal: number; stampTax: number; adjustment: number; total: number;
+  thirdParty: number; refunds: number; netOwn: number;
+  byPerson: { personId: string; name: string; amount: number }[];
+  paidAt: string | null;
+}
+export interface CommitmentDto { month: string; total: number; byCard: { cardId: string; total: number }[] }

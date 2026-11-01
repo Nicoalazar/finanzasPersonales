@@ -11,6 +11,7 @@ export function Layout() {
       <header className="flex flex-wrap items-center justify-between gap-2 py-4">
         <nav className="flex gap-1">
           <NavLink to="/" end className={link}>Mes</NavLink>
+          <NavLink to="/tarjetas" className={link}>Tarjetas</NavLink>
           <NavLink to="/config" className={link}>Configuración</NavLink>
         </nav>
         <button className="text-sm text-slate-500 underline" onClick={logout}>Salir ({email})</button>
