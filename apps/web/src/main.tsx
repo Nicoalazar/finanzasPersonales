@@ -1,9 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
-import { Home } from "./pages/Home";
+import { Month } from "./pages/Month";
+import { Settings } from "./pages/Settings";
 import "./index.css";
 
 const qc = new QueryClient();
@@ -11,15 +14,26 @@ const qc = new QueryClient();
 function Root() {
   const { email, loading } = useAuth();
   if (loading) return null;
-  return email ? <Home /> : <Login />;
+  if (!email) return <Login />;
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Month />} />
+        <Route path="config" element={<Settings />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={qc}>
-      <AuthProvider>
-        <Root />
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <Root />
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,
 );

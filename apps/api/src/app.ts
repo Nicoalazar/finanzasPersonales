@@ -8,6 +8,9 @@ import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { prisma } from "./plugins/db.js";
 import { authRoutes } from "./modules/auth/routes.js";
+import { accountRoutes } from "./modules/accounts/routes.js";
+import { categoryRoutes } from "./modules/categories/routes.js";
+import { transactionRoutes } from "./modules/transactions/routes.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: config.NODE_ENV !== "test" });
@@ -20,6 +23,9 @@ export async function buildApp() {
     return { ok: true };
   });
   await app.register(authRoutes);
+  await app.register(accountRoutes);
+  await app.register(categoryRoutes);
+  await app.register(transactionRoutes);
 
   // En producción el mismo servicio sirve el front compilado (SPA).
   const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web/dist");
