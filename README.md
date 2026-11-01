@@ -9,6 +9,7 @@ Monorepo pnpm: `apps/api` (Fastify + Prisma + Postgres), `apps/web` (React + Vit
 | **Resumen** | Resultado del mes, gasto/ingreso, tarjetas/ingreso, patrimonio; gastos por mes (tarjetas / recurrentes / otros), resultado acumulado, gasto por categoría, presupuestos en alerta y quién te debe. Exporta CSV. |
 | **Mes** | Movimientos del mes, pendientes (los recurrentes se generan solos al abrir el mes), gasto neto = gasto − reintegros. |
 | **Tarjetas** | Compras en cuotas con reparto a terceros, resumen mensual (7‰, ajuste, reintegros), cierre y vencimiento editables mes a mes, pago del resumen, compromisos de los próximos 12 meses. |
+| **Compartidos** | Gastos comunes con tu pareja cargados en el Google Form: se importan del CSV de respuestas (subiendo el archivo o con el link publicado), cuentan **tu parte** según el % del mes del grupo *Hogar* y calculan el saldo. Tus pagos salen de una cuenta o de una tarjeta; lo que te devuelve entra como *Reintegros*. |
 | **Personas** | Cuánto te debe cada una, detalle por mes, cargos manuales en cuotas y pagos (entran como ingreso en la categoría *Reintegros*). |
 | **Recurrentes** | Alquiler, servicios, suscripciones; frecuencia mensual/bimestral/anual, cambios de precio con vigencia, grupos compartidos (*Hogar*) con **% editable mes a mes**. |
 | **Presupuestos** | Por categoría y mes, con alerta al 80 % y al 100 %; copiar del mes anterior con aumento. |

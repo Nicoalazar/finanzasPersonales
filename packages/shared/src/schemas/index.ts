@@ -68,6 +68,8 @@ export interface CategoryDto { id: string; name: string; type: z.infer<typeof ca
 export interface TransactionDto {
   id: string; date: string; period: string; amount: number; type: z.infer<typeof txType>; status: z.infer<typeof txStatus>;
   description: string; categoryId: string | null; accountId: string; toAccountId: string | null; recurringId: string | null;
+  /** Pago mío de un gasto compartido (se edita desde Compartidos) y saldo del mes con la pareja. */
+  sharedExpenseId: string | null; sharedMonth: string | null;
 }
 /** income no incluye reintegros; netExpense = expense − reimbursements; balance = income − netExpense. */
 export interface MonthSummaryDto { income: number; expense: number; reimbursements: number; netExpense: number; balance: number }
@@ -128,6 +130,8 @@ export interface PurchaseDto {
   id: string; cardId: string; date: string; description: string; categoryId: string | null; totalAmount: number;
   installmentCount: number; firstStatementMonth: string; lastStatementMonth: string;
   shares: { personId: string; mode: "PERCENT" | "AMOUNT"; value: number }[];
+  /** Generada desde un gasto compartido: se edita desde Compartidos. */
+  shared: boolean;
 }
 export interface StatementItemDto {
   installmentId: string; purchaseId: string; description: string; number: number; count: number; amount: number;
@@ -322,3 +326,46 @@ export interface DashboardDto {
   budgets: { totals: BudgetsDto["totals"]; flagged: BudgetRowDto[] };
   debtors: PersonSummaryDto[];
 }
+
+// ---- gastos compartidos (formulario con la pareja) ----
+export const sharedPayer = z.enum(["ME", "PARTNER"]);
+export const sharedConfigInput = z.object({
+  meName: z.string().trim().min(1).max(40),
+  partnerName: z.string().trim().min(1).max(40),
+  sourceUrl: z.string().trim().url().startsWith("https://").max(1000).nullable(),
+  fromMonth: yearMonth,
+  defaultAccountId: z.string().nullable(),
+  groupId: z.string().nullable(),
+}).partial();
+export const sharedImportInput = z.object({ csv: z.string().max(5_000_000).optional() });
+/** Cómo pagué yo: desde una cuenta, o con tarjeta (en cuotas). */
+const sharedMethod = { accountId: z.string().nullable().optional(), cardId: z.string().nullable().optional(), installmentCount: z.number().int().min(1).max(60).optional() };
+export const sharedEntryInput = z.object({
+  date: isoDate, payer: sharedPayer, kind: z.string().trim().min(1).max(60), description: z.string().trim().max(200).default(""),
+  amount: money.positive(), ...sharedMethod,
+});
+export const sharedEntryPatch = sharedEntryInput.partial();
+export const sharedKindInput = z.object({ kind: z.string().trim().min(1).max(60), categoryId: z.string().nullable() });
+export const sharedSettleInput = z.object({ month: yearMonth, date: isoDate, accountId: z.string().min(1), amount: money.refine((n) => n !== 0, "El monto no puede ser 0") });
+export const sharedMonthQuery = z.object({ month: yearMonth });
+
+export interface SharedConfigDto {
+  meName: string; partnerName: string; sourceUrl: string | null; fromMonth: string; defaultAccountId: string | null;
+  groupId: string | null; lastSyncAt: string | null;
+}
+export interface SharedEntryDto {
+  id: string; date: string; payer: z.infer<typeof sharedPayer>; kind: string; description: string; amount: number; source: "FORM" | "MANUAL";
+  accountId: string | null; cardId: string | null; installmentCount: number;
+}
+export interface SharedKindRowDto { kind: string; categoryId: string | null; total: number; pct: number; myShare: number }
+export interface SharedSettlementDto { transactionId: string; date: string; amount: number; accountId: string }
+export interface SharedMonthDto {
+  month: string; groupId: string | null; percent: number; percentIsOwn: boolean;
+  total: number; myShare: number; partnerShare: number; paidByMe: number; paidByPartner: number;
+  /** > 0: la pareja me debe; < 0: le debo. */
+  balance: number; settled: number; pending: number;
+  byKind: SharedKindRowDto[]; entries: SharedEntryDto[]; settlements: SharedSettlementDto[];
+  /** Recurrentes del mismo grupo activos en el mes: si también se cargan en el formulario se cuentan dos veces. */
+  overlappingRecurring: string[];
+}
+export interface SharedImportResultDto { created: number; removed: number; unchanged: number; skippedBefore: number; errors: { line: number; message: string }[] }

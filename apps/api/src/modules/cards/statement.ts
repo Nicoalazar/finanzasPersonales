@@ -1,5 +1,5 @@
 import {
-  computeStatement, defaultClosingDate, defaultDueDate, fromCents, shareCents, toCents,
+  computeStatement, defaultClosingDate, defaultDueDate, fromCents, shareCents, statementMonthForPurchase, toCents,
   type StatementDto, type StatementItemDto,
 } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
@@ -9,6 +9,11 @@ import { fromDbDate, num } from "../../lib.js";
 export async function closingDateFor(card: { id: string; closingDay: number }, month: string): Promise<string> {
   const st = await prisma.cardStatement.findUnique({ where: { cardId_month: { cardId: card.id, month } }, select: { closingDate: true } });
   return st?.closingDate ? fromDbDate(st.closingDate) : defaultClosingDate(month, card.closingDay);
+}
+
+/** Mes de resumen de una compra, usando el cierre real de ese mes (editable) y no solo el día por defecto. */
+export async function resolveFirstMonth(card: { id: string; closingDay: number }, date: string): Promise<string> {
+  return statementMonthForPurchase(date, await closingDateFor(card, date.slice(0, 7)));
 }
 
 /** Arma el resumen de una tarjeta para un mes a partir de las cuotas que caen en ese mes. */

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { CreditCard } from "@prisma/client";
 import {
-  addMonths, cardInput, cardPatch, computeStatement, fromCents, purchasePatch, statementMonthForPurchase, installmentMonths, purchaseInput,
+  addMonths, cardInput, cardPatch, computeStatement, fromCents, purchasePatch, installmentMonths, purchaseInput,
   splitInstallments, statementPatch, statementPay, statementQuery, toCents, type CardDto, type CommitmentDto, type PurchaseDto,
 } from "@finanzas/shared";
 import { z } from "zod";
@@ -9,17 +9,12 @@ import { isoDate } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
-import { buildStatement, closingDateFor } from "./statement.js";
+import { buildStatement, resolveFirstMonth } from "./statement.js";
 
 const dto = (c: CreditCard): CardDto => ({
   id: c.id, name: c.name, closingDay: c.closingDay, dueDay: c.dueDay, stampTaxRate: num(c.stampTaxRate),
   isThirdParty: c.isThirdParty, payAccountId: c.payAccountId,
 });
-
-/** Mes de resumen de una compra, usando el cierre real de ese mes (editable) y no solo el día por defecto. */
-async function resolveFirstMonth(card: CreditCard, date: string): Promise<string> {
-  return statementMonthForPurchase(date, await closingDateFor(card, date.slice(0, 7)));
-}
 
 export async function cardRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -57,6 +52,7 @@ export async function cardRoutes(app: FastifyInstance) {
       totalAmount: num(p.totalAmount), installmentCount: p.installmentCount, firstStatementMonth: p.firstStatementMonth,
       lastStatementMonth: addMonths(p.firstStatementMonth, p.installmentCount - 1),
       shares: p.shares.map((s) => ({ personId: s.personId, mode: s.mode, value: num(s.value) })),
+      shared: !!p.sharedExpenseId,
     }));
   });
 
@@ -102,6 +98,8 @@ export async function cardRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { id: string } }>("/api/card-purchases/:id", async (req, reply) => {
+    if ((await prisma.cardPurchase.findUnique({ where: { id: req.params.id } }))?.sharedExpenseId)
+      return reply.code(409).send({ error: "Es un gasto compartido: editalo desde Compartidos" });
     await prisma.cardPurchase.deleteMany({ where: { id: req.params.id } });
     return reply.code(204).send();
   });

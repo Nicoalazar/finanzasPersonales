@@ -78,7 +78,11 @@ export function Month() {
             <span className={`text-sm font-medium ${t.type === "INCOME" ? "text-emerald-600" : t.type === "EXPENSE" ? "text-rose-600" : "text-slate-500"}`}>
               {t.type === "EXPENSE" ? "−" : ""}{formatMoney(t.amount)}
             </span>
-            <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar" onClick={() => confirm("¿Eliminar este movimiento?") && remove.mutate(t.id)}>✕</button>
+            {t.sharedExpenseId ? (
+              <Link to="/compartidos" className="text-xs text-slate-400 hover:text-slate-900" title="Pago de un gasto compartido: se edita desde Compartidos">⇄</Link>
+            ) : (
+              <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar" onClick={() => confirm("¿Eliminar este movimiento?") && remove.mutate(t.id)}>✕</button>
+            )}
           </div>
         ))}
       </section>

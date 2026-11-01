@@ -7,3 +7,4 @@ export * from "./domain/recurrence.js";
 export * from "./domain/budget.js";
 export * from "./domain/salary.js";
 export * from "./domain/investments.js";
+export * from "./domain/sharedForm.js";

@@ -2,16 +2,21 @@ import { budgetStatus, fromCents, toCents, type BudgetRowDto, type BudgetsDto } 
 import { prisma } from "../../plugins/db.js";
 import { num } from "../../lib.js";
 import { installmentShareCents } from "../cards/statement.js";
+import { sharedCategoryCents } from "../shared/service.js";
 
 /**
  * Gasto propio del mes por categoría (centavos; la clave null es "sin categoría").
  * Suma los movimientos de gasto y mi parte neta de las cuotas de tarjeta del resumen de ese mes.
  * El pago del resumen no se cuenta: no es un gasto nuevo, ya está en las compras.
+ * De los gastos compartidos cuenta solo mi parte; mis pagos y el saldo con la pareja son caja, no categoría.
  */
 export async function categorySpending(month: string): Promise<Map<string | null, number>> {
-  const [txs, installments] = await Promise.all([
-    prisma.transaction.groupBy({ by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null }, _sum: { amount: true } }),
-    prisma.cardInstallment.findMany({ where: { month }, include: { purchase: { include: { shares: true } } } }),
+  const [txs, installments, shared] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null, sharedExpenseId: null, sharedMonth: null }, _sum: { amount: true },
+    }),
+    prisma.cardInstallment.findMany({ where: { month, purchase: { sharedExpenseId: null } }, include: { purchase: { include: { shares: true } } } }),
+    sharedCategoryCents(month),
   ]);
   const out = new Map<string | null, number>();
   const add = (k: string | null, cents: number) => out.set(k, (out.get(k) ?? 0) + cents);
@@ -22,6 +27,7 @@ export async function categorySpending(month: string): Promise<Map<string | null
     const others = i.purchase.shares.reduce((a, s) => a + installmentShareCents(amount, { mode: s.mode, value: num(s.value) }), 0);
     add(i.purchase.categoryId, Math.max(0, amount - others));
   }
+  for (const [k, cents] of shared) add(k, cents);
   return out;
 }
 

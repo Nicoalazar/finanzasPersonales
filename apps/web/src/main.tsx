@@ -12,6 +12,7 @@ import { Salary } from "./pages/Salary";
 import { Budgets } from "./pages/Budgets";
 import { Recurring } from "./pages/Recurring";
 import { Persons } from "./pages/Persons";
+import { Shared } from "./pages/Shared";
 import { Month } from "./pages/Month";
 import { Settings } from "./pages/Settings";
 import "./index.css";
@@ -33,6 +34,7 @@ function Root() {
         <Route path="presupuestos" element={<Budgets />} />
         <Route path="recurrentes" element={<Recurring />} />
         <Route path="personas" element={<Persons />} />
+        <Route path="compartidos" element={<Shared />} />
         <Route path="config" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -39,6 +39,14 @@ enum PayslipKind {
   MONTHLY
   SAC
 }
+enum SharedPayer {
+  ME
+  PARTNER
+}
+enum SharedSource {
+  FORM
+  MANUAL
+}
 
 model User {
   id           String   @id @default(cuid())
@@ -74,6 +82,7 @@ model Category {
   budgets   Budget[]
   purchases CardPurchase[]
   recurring RecurringExpense[]
+  sharedKinds SharedKind[]
 
   @@unique([name, type])
 }
@@ -101,6 +110,11 @@ model Transaction {
   amountLocked Boolean @default(false)
   personPaymentId String? @unique
   personPayment   PersonPayment? @relation(fields: [personPaymentId], references: [id], onDelete: Cascade)
+  /// Mi pago de un gasto compartido: sale de caja, pero en categorías cuenta solo mi parte.
+  sharedExpenseId String? @unique
+  sharedExpense   SharedExpense? @relation(fields: [sharedExpenseId], references: [id], onDelete: Cascade)
+  /// Saldo de gastos compartidos de ese mes (YYYY-MM) que me pagaron o que pagué.
+  sharedMonth String?
   /// Mes (YYYY-MM) al que se imputa; evita duplicar recurrentes.
   period      String
   createdAt   DateTime    @default(now())
@@ -135,6 +149,9 @@ model CardPurchase {
   firstStatementMonth String
   installments CardInstallment[]
   shares      PersonShare[]
+  /// Compra hecha para un gasto compartido: en categorías cuenta solo mi parte.
+  sharedExpenseId String? @unique
+  sharedExpense   SharedExpense? @relation(fields: [sharedExpenseId], references: [id], onDelete: Cascade)
 }
 
 model CardInstallment {
@@ -211,6 +228,7 @@ model SharedGroup {
   myPercent Decimal @db.Decimal(5, 2)
   recurring RecurringExpense[]
   overrides SharedGroupPercent[]
+  ledgers   SharedLedger[]
 }
 
 model SharedGroupPercent {
@@ -291,4 +309,50 @@ model Payslip {
   transactions Transaction[]
 
   @@unique([month, kind])
+}
+
+/// Configuración de la libreta de gastos compartidos (una sola fila, id "default").
+model SharedLedger {
+  id               String   @id @default("default")
+  groupId          String?
+  group            SharedGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  meName           String   @default("Yo")
+  partnerName      String   @default("Pareja")
+  /// CSV publicado de la planilla de respuestas del formulario.
+  sourceUrl        String?
+  /// Las respuestas anteriores a este mes no se importan.
+  fromMonth        String
+  defaultAccountId String?
+  lastSyncAt       DateTime?
+}
+
+/// Tipo de gasto del formulario ("Mercadería", "Alquiler"...) → categoría propia.
+model SharedKind {
+  kind       String  @id
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
+/// Gasto común (lo pagó cualquiera de los dos). Mis pagos generan el movimiento o la compra con tarjeta.
+model SharedExpense {
+  id          String       @id @default(cuid())
+  date        DateTime     @db.Date
+  month       String
+  payer       SharedPayer
+  kind        String
+  description String       @default("")
+  amount      Decimal      @db.Decimal(14, 2)
+  source      SharedSource @default(MANUAL)
+  /// Identifica la respuesta del formulario para no duplicarla al reimportar.
+  externalKey String?      @unique
+  /// Borrado a mano: no se vuelve a importar ni cuenta en el mes.
+  ignored     Boolean      @default(false)
+  accountId   String?
+  cardId      String?
+  installmentCount Int     @default(1)
+  transaction Transaction?
+  purchase    CardPurchase?
+  createdAt   DateTime     @default(now())
+
+  @@index([month])
 }

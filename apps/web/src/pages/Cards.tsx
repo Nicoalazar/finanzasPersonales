@@ -89,7 +89,7 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
               </button>
             ))}
             <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar compra" title="Eliminar la compra completa"
-              onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && delPurchase.mutate(i.purchaseId)}>✕</button>
+              onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && guard(() => delPurchase.mutateAsync(i.purchaseId))}>✕</button>
           </div>
         ))}
       </div>

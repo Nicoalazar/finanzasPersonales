@@ -136,3 +136,19 @@ import type { DashboardDto } from "@finanzas/shared";
 
 export const useDashboard = (month: string, months: number) =>
   useQuery({ queryKey: ["dashboard", month, months], queryFn: () => api<DashboardDto>(`/dashboard?month=${month}&months=${months}`) });
+
+// ---- Gastos compartidos ----
+import type { SharedConfigDto, SharedImportResultDto, SharedMonthDto } from "@finanzas/shared";
+
+export const useSharedConfig = () => useQuery({ queryKey: ["shared-config"], queryFn: () => api<SharedConfigDto>("/shared/config") });
+export const useSharedMonth = (month: string) => useQuery({ queryKey: ["shared-month", month], queryFn: () => api<SharedMonthDto>(`/shared/month?month=${month}`) });
+export const usePatchSharedConfig = () => useInvalidatingMutation((v: Partial<SharedConfigDto>) => api("/shared/config", { method: "PATCH", json: v }));
+export const useImportShared = () =>
+  useInvalidatingMutation((v: { csv?: string }) => api<SharedImportResultDto>("/shared/import", { method: "POST", json: v }));
+export const useCreateSharedEntry = () => useInvalidatingMutation((v: unknown) => api("/shared/entries", { method: "POST", json: v }));
+export const usePatchSharedEntry = () => useInvalidatingMutation((v: { id: string; patch: unknown }) => api(`/shared/entries/${v.id}`, { method: "PATCH", json: v.patch }));
+export const useDeleteSharedEntry = () => useInvalidatingMutation((id: string) => api(`/shared/entries/${id}`, { method: "DELETE" }));
+export const useSetSharedKind = () => useInvalidatingMutation((v: { kind: string; categoryId: string | null }) => api("/shared/kinds", { method: "PUT", json: v }));
+export const useSettleShared = () =>
+  useInvalidatingMutation((v: { month: string; date: string; accountId: string; amount: number }) => api("/shared/settle", { method: "POST", json: v }));
+export const useDeleteSettlement = () => useInvalidatingMutation((id: string) => api(`/shared/settlements/${id}`, { method: "DELETE" }));

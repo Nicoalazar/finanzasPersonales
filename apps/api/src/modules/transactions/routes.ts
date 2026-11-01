@@ -8,6 +8,7 @@ import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
 const dto = (t: Transaction): TransactionDto => ({
   id: t.id, date: fromDbDate(t.date), period: t.period, amount: num(t.amount), type: t.type, status: t.status,
   description: t.description, categoryId: t.categoryId, accountId: t.accountId, toAccountId: t.toAccountId, recurringId: t.recurringId,
+  sharedExpenseId: t.sharedExpenseId, sharedMonth: t.sharedMonth,
 });
 
 /** Los reintegros de terceros no son ingreso propio: se descuentan del gasto (gasto neto). */
@@ -22,6 +23,8 @@ export function summarize(rows: { type: string; amount: unknown; category: { isR
   const netExpense = r(expense - reimbursements);
   return { income: r(income), expense: r(expense), reimbursements: r(reimbursements), netExpense, balance: r(income - netExpense) };
 }
+
+const SHARED_LOCKED = "Es un pago de un gasto compartido: editalo desde Compartidos";
 
 export async function transactionRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -65,6 +68,7 @@ export async function transactionRoutes(app: FastifyInstance) {
     if (!body) return;
     const cur = await prisma.transaction.findUnique({ where: { id: req.params.id } });
     if (!cur) return reply.code(404).send({ error: "Movimiento no encontrado" });
+    if (cur.sharedExpenseId) return reply.code(409).send({ error: SHARED_LOCKED });
     const merged = { type: body.type ?? cur.type, categoryId: body.categoryId === undefined ? cur.categoryId : body.categoryId, accountId: body.accountId ?? cur.accountId, toAccountId: body.toAccountId === undefined ? cur.toAccountId : body.toAccountId };
     if (merged.type === "TRANSFER" ? !merged.toAccountId || merged.toAccountId === merged.accountId : !!merged.toAccountId) return reply.code(400).send({ error: "Transferencia inválida" });
     const err = await checkRefs(merged);
@@ -78,6 +82,7 @@ export async function transactionRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { id: string } }>("/api/transactions/:id", async (req, reply) => {
     const tx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
+    if (tx?.sharedExpenseId) return reply.code(409).send({ error: SHARED_LOCKED });
     if (tx?.recurringId) {
       // borrar un movimiento recurrente equivale a saltear ese mes: que no se vuelva a generar
       await prisma.recurringSkip.upsert({

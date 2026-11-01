@@ -19,6 +19,7 @@ import { payslipRoutes } from "./modules/payslips/routes.js";
 import { recurringRoutes } from "./modules/recurring/routes.js";
 import { personRoutes } from "./modules/persons/routes.js";
 import { transactionRoutes } from "./modules/transactions/routes.js";
+import { sharedRoutes } from "./modules/shared/routes.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: config.NODE_ENV !== "test" });
@@ -40,6 +41,7 @@ export async function buildApp() {
   await app.register(budgetRoutes);
   await app.register(payslipRoutes);
   await app.register(investmentRoutes);
+  await app.register(sharedRoutes);
   await app.register(dashboardRoutes);
   await app.register(exportRoutes);
 

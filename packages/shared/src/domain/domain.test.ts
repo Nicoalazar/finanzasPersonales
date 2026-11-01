@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { splitInstallments, firstStatementMonth, addMonths } from "./installments.js";
 import { computeStatement, householdShareCents } from "./cardStatement.js";
+import { parseAmount, parseCsv, parseFormCsv, parseFormDate, sharedMonthCents } from "./sharedForm.js";
 
 describe("cuotas", () => {
   it("20000 en 3 suma exacto", () => {
@@ -133,5 +134,55 @@ describe("inversiones", () => {
     expect(currentEstimateCents(0, flows, [snaps[0]!])).toBe(101000000 + 50000000);
     expect(currentEstimateCents(0, flows, snaps)).toBe(154000000);
     expect(currentEstimateCents(5000, flows, [])).toBe(150005000);
+  });
+});
+
+describe("gastos compartidos (formulario)", () => {
+  const header = "Marca temporal,Pagado por:,Elija el tipo:,Monto,Elija el Servicio,Monto del Servicio,Monto de la Compra,Concepto,Monto Pagado,Detalle de Gasto,Monto del Gasto,Elija Plataforma,Monto de la Plataforma,Elija el gasto,Monto de la Salida,Gasto,Monto";
+  const csv = [
+    header,
+    '2/01/2024 19:48:23,Nico,Varios,,,,,,,Ollas,"25349,02",,,,,,',
+    '2/01/2024 19:50:35,Nico,Mercadería,,,,"37909,75",,,,,,,,,,',
+    '4/01/2024 13:38:34,Euge,Servicios,,Electricidad,"8991,34",,,,,,,,,,,',
+    "4/01/2024 19:49:11,Euge,Alquiler,,,,,Alquiler,96897,,,,,,,,",
+    '6/01/2024 18:37:44,Euge,Recreación,,,,,,,,,,,"Servilletero y, vasos",3600,,',
+    "7/01/2024 10:00:00,Guille,Varios,,,,,,,Tierra,1500,,,,,,",
+    "8/01/2024 10:00:00,Nico,Varios,,,,,,,Sin monto,,,,,,,",
+  ].join("\n");
+
+  it("montos y fechas a la argentina", () => {
+    expect(parseAmount("25349,02")).toBe(25349.02);
+    expect(parseAmount("83.665,47")).toBe(83665.47);
+    expect(parseAmount("1.200")).toBe(1200);
+    expect(parseAmount("3199.33")).toBe(3199.33);
+    expect(parseAmount("$ 1.500")).toBe(1500);
+    expect(parseAmount("abc")).toBeNull();
+    expect(parseFormDate("2/01/2024 19:48:23")).toBe("2024-01-02");
+    expect(parseFormDate("2024-11-05 10:00")).toBe("2024-11-05");
+    expect(parseCsv('a;"b;c"\r\n1;2')).toEqual([["a", "b;c"], ["1", "2"]]);
+  });
+
+  it("lee cada tipo con sus columnas y reporta las filas que no entiende", () => {
+    const { rows, errors } = parseFormCsv(csv, { me: "Nico", partner: "euge" });
+    expect(rows.map((r) => [r.date, r.payer, r.kind, r.description, r.amount])).toEqual([
+      ["2024-01-02", "ME", "Varios", "Ollas", 25349.02],
+      ["2024-01-02", "ME", "Mercadería", "", 37909.75],
+      ["2024-01-04", "PARTNER", "Servicios", "Electricidad", 8991.34],
+      ["2024-01-04", "PARTNER", "Alquiler", "Alquiler", 96897],
+      ["2024-01-06", "PARTNER", "Recreación", "Servilletero y, vasos", 3600],
+    ]);
+    expect(errors.map((e) => e.line)).toEqual([7, 8]);
+    expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
+  });
+
+  it("cierre del mes: mi parte por tipo y saldo", () => {
+    const m = sharedMonthCents([
+      { payer: "ME", kind: "Mercadería", cents: 90_000_00 },
+      { payer: "PARTNER", kind: "Alquiler", cents: 110_000_00 },
+    ], 35);
+    expect(m.totalCents).toBe(200_000_00);
+    expect(m.myShareCents).toBe(70_000_00);
+    expect(m.byKind.get("Alquiler")!.myCents).toBe(38_500_00);
+    expect(m.balanceCents).toBe(20_000_00); // Euge me debe 20.000
   });
 });

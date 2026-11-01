@@ -13,6 +13,7 @@ export function Layout() {
           <NavLink to="/" end className={link}>Resumen</NavLink>
           <NavLink to="/mes" className={link}>Mes</NavLink>
           <NavLink to="/tarjetas" className={link}>Tarjetas</NavLink>
+          <NavLink to="/compartidos" className={link}>Compartidos</NavLink>
           <NavLink to="/inversiones" className={link}>Inversiones</NavLink>
           <NavLink to="/sueldos" className={link}>Sueldos</NavLink>
           <NavLink to="/presupuestos" className={link}>Presupuestos</NavLink>
