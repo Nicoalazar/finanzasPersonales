@@ -65,6 +65,7 @@ model Account {
   incoming       Transaction[] @relation("TxToAccount")
   snapshots      BalanceSnapshot[]
   cards          CreditCard[]
+  jobs           Job[]
 }
 
 model Category {
@@ -299,16 +300,30 @@ model BalanceSnapshot {
   @@unique([accountId, date])
 }
 
-/// Recibo de sueldo simplificado: solo bruto y neto. El ingreso se genera por el neto.
+/// Un trabajo del que cobro sueldo. "informal" = en negro: no hay bruto, solo el neto (suele cobrarse en efectivo).
+model Job {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  informal  Boolean   @default(false)
+  /// cuenta donde se cobra por defecto
+  accountId String?
+  account   Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  archived  Boolean   @default(false)
+  payslips  Payslip[]
+}
+
+/// Recibo de sueldo simplificado: solo bruto y neto (sin bruto si el trabajo es en negro). El ingreso se genera por el neto.
 model Payslip {
   id    String      @id @default(cuid())
+  jobId String
+  job   Job         @relation(fields: [jobId], references: [id])
   month String
   kind  PayslipKind @default(MONTHLY)
-  gross Decimal     @db.Decimal(14, 2)
+  gross Decimal?    @db.Decimal(14, 2)
   net   Decimal     @db.Decimal(14, 2)
   transactions Transaction[]
 
-  @@unique([month, kind])
+  @@unique([jobId, month, kind])
 }
 
 /// Configuración de la libreta de gastos compartidos (una sola fila, id "default").

@@ -108,13 +108,19 @@ export const useCopyBudgets = () =>
     api<{ copied: number; skipped: number }>("/budgets/copy", { method: "POST", json: v }));
 
 // ---- Sueldos ----
-import type { PayslipDto, SacSuggestionDto } from "@finanzas/shared";
+import type { JobDto, PayslipDto, SacSuggestionDto } from "@finanzas/shared";
 
+export const useJobs = () => useQuery({ queryKey: ["jobs"], queryFn: () => api<JobDto[]>("/jobs") });
+export const useCreateJob = () =>
+  useInvalidatingMutation((v: { name: string; informal: boolean; accountId: string | null }) => api("/jobs", { method: "POST", json: v }));
+export const usePatchJob = () =>
+  useInvalidatingMutation((v: { id: string; patch: Partial<Pick<JobDto, "name" | "informal" | "accountId" | "archived">> }) => api(`/jobs/${v.id}`, { method: "PATCH", json: v.patch }));
+export const useDeleteJob = () => useInvalidatingMutation((id: string) => api(`/jobs/${id}`, { method: "DELETE" }));
 export const usePayslips = () => useQuery({ queryKey: ["payslips"], queryFn: () => api<PayslipDto[]>("/payslips") });
-export const useSacSuggestion = (month: string, enabled: boolean) =>
-  useQuery({ queryKey: ["sac-suggestion", month], enabled, queryFn: () => api<SacSuggestionDto>(`/payslips/sac-suggestion?month=${month}`) });
+export const useSacSuggestion = (month: string, jobId: string, enabled: boolean) =>
+  useQuery({ queryKey: ["sac-suggestion", month, jobId], enabled: enabled && !!jobId, queryFn: () => api<SacSuggestionDto>(`/payslips/sac-suggestion?month=${month}&jobId=${jobId}`) });
 export const useCreatePayslip = () =>
-  useInvalidatingMutation((v: { month: string; kind: string; gross: number; net: number; date: string; accountId: string; paid: boolean }) =>
+  useInvalidatingMutation((v: { jobId: string; month: string; kind: string; gross?: number; net: number; date: string; accountId: string; paid: boolean }) =>
     api("/payslips", { method: "POST", json: v }));
 export const usePatchPayslip = () =>
   useInvalidatingMutation((v: { id: string; patch: { gross?: number; net?: number; date?: string } }) => api(`/payslips/${v.id}`, { method: "PATCH", json: v.patch }));

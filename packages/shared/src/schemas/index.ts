@@ -237,11 +237,27 @@ export interface BudgetsDto {
 }
 
 // ---- Sueldos (solo bruto y neto) ----
+/** Trabajo del que se cobra sueldo. informal = en negro: solo neto, sin bruto. */
+export const jobInput = z.object({
+  name: z.string().trim().min(1).max(60),
+  informal: z.boolean().default(false),
+  accountId: z.string().min(1).nullable().optional(),
+});
+export const jobPatch = z.object({
+  name: z.string().trim().min(1).max(60),
+  informal: z.boolean(),
+  accountId: z.string().min(1).nullable(),
+  archived: z.boolean(),
+}).partial();
+export interface JobDto { id: string; name: string; informal: boolean; accountId: string | null; archived: boolean; payslipCount: number }
+
 export const payslipKind = z.enum(["MONTHLY", "SAC"]);
 export const payslipInput = z.object({
+  jobId: z.string().min(1),
   month: yearMonth,
   kind: payslipKind.default("MONTHLY"),
-  gross: z.number().finite().positive(),
+  /** obligatorio salvo en trabajos en negro, donde se ignora */
+  gross: z.number().finite().positive().optional(),
   net: z.number().finite().positive(),
   /** fecha en que se cobra: define en qué mes entra el ingreso */
   date: isoDate,
@@ -254,13 +270,14 @@ export const payslipPatch = z.object({
   date: isoDate,
   accountId: z.string().min(1),
 }).partial();
-export const sacSuggestionQuery = z.object({ month: yearMonth });
+export const sacSuggestionQuery = z.object({ month: yearMonth, jobId: z.string().min(1) });
 
 export interface PayslipDto {
-  id: string; month: string; kind: z.infer<typeof payslipKind>; gross: number; net: number;
+  id: string; jobId: string; month: string; kind: z.infer<typeof payslipKind>; gross: number | null; net: number;
   date: string | null; accountId: string | null; status: z.infer<typeof txStatus> | null;
 }
-export interface SacSuggestionDto { month: string; basedOnMonths: number; suggestedGross: number | null }
+/** basis: en trabajos en negro la sugerencia sale del neto (no hay bruto). */
+export interface SacSuggestionDto { month: string; basedOnMonths: number; suggested: number | null; basis: "gross" | "net" }
 
 // ---- Inversiones ----
 export const snapshotInput = z.object({ accountId: z.string().min(1), date: isoDate, balance: z.number().finite().min(0) });

@@ -13,7 +13,7 @@ Monorepo pnpm: `apps/api` (Fastify + Prisma + Postgres), `apps/web` (React + Vit
 | **Personas** | Cuánto te debe cada una, detalle por mes, cargos manuales en cuotas y pagos (entran como ingreso en la categoría *Reintegros*). |
 | **Recurrentes** | Alquiler, servicios, suscripciones; frecuencia mensual/bimestral/anual, cambios de precio con vigencia, grupos compartidos (*Hogar*) con **% editable mes a mes**. |
 | **Presupuestos** | Por categoría y mes, con alerta al 80 % y al 100 %; copiar del mes anterior con aumento. |
-| **Sueldos** | Bruto y neto por mes + SAC; el neto se carga solo como ingreso. |
+| **Sueldos** | Varios trabajos, cada uno con su recibo mensual (bruto y neto) + SAC; los trabajos en negro llevan solo el neto. El neto se carga solo como ingreso. |
 | **Inversiones** | Depósitos y retiros, saldo real anotado, ganancia = real − teórico. |
 
 ## Desarrollo local
