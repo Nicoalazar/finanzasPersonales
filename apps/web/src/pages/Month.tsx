@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { TransactionForm } from "../components/TransactionForm";
 import { currentMonth, formatDay, formatMoney, monthLabel, shiftMonth } from "../lib/format";
-import { useAccounts, useCategories, useDeleteTransaction, useTransactions, useUpdateTransaction } from "../lib/queries";
+import { useAccounts, useCategories, useDeleteTransaction, useGenerateMonth, useTransactions, useUpdateTransaction } from "../lib/queries";
 
 export function Month() {
   const [month, setMonth] = useState(currentMonth());
   const [adding, setAdding] = useState(false);
-  const { data, isLoading } = useTransactions(month);
+  const gen = useGenerateMonth(month);
+  const { data, isLoading } = useTransactions(month, !gen.isLoading);
   const accounts = useAccounts().data ?? [];
   const categories = useCategories().data ?? [];
   const update = useUpdateTransaction();
@@ -54,6 +55,11 @@ export function Month() {
               <div className="truncate text-sm">{t.description || (t.type === "TRANSFER" ? `${accName(t.accountId)} → ${accName(t.toAccountId!)}` : catName(t.categoryId))}</div>
               <div className="text-xs text-slate-500">{t.type === "TRANSFER" ? "Transferencia" : catName(t.categoryId)} · {accName(t.accountId)}</div>
             </div>
+            {t.recurringId && <span title="Recurrente" className="text-xs text-slate-400">↻</span>}
+            {t.status === "PENDING" && (
+              <button className="text-slate-400 hover:text-slate-900" aria-label="Editar monto" title="Editar monto (queda fijo)"
+                onClick={() => { const v = prompt("Nuevo monto", String(t.amount)); const n = Number((v ?? "").replace(",", ".")); if (v !== null && n > 0) update.mutate({ id: t.id, patch: { amount: n } }); }}>✎</button>
+            )}
             {t.status === "PENDING" && (
               <button className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800" title="Marcar como pagado" onClick={() => update.mutate({ id: t.id, patch: { status: "PAID" } })}>Pendiente</button>
             )}

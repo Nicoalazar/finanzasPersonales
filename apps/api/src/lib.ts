@@ -14,3 +14,6 @@ export function parse<T extends ZodTypeAny>(schema: T, data: unknown, reply: Fas
   }
   return r.data;
 }
+
+export const currentMonth = () =>
+  new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 7);

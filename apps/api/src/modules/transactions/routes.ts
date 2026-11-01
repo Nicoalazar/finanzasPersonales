@@ -7,7 +7,7 @@ import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
 
 const dto = (t: Transaction): TransactionDto => ({
   id: t.id, date: fromDbDate(t.date), period: t.period, amount: num(t.amount), type: t.type, status: t.status,
-  description: t.description, categoryId: t.categoryId, accountId: t.accountId, toAccountId: t.toAccountId,
+  description: t.description, categoryId: t.categoryId, accountId: t.accountId, toAccountId: t.toAccountId, recurringId: t.recurringId,
 });
 
 /** Los reintegros de terceros no son ingreso propio: se descuentan del gasto (gasto neto). */
@@ -70,11 +70,21 @@ export async function transactionRoutes(app: FastifyInstance) {
     const err = await checkRefs(merged);
     if (err) return reply.code(400).send({ error: err });
     const { date, ...rest } = body;
-    const t = await prisma.transaction.update({ where: { id: cur.id }, data: { ...rest, ...(date ? { date: toDbDate(date), period: date.slice(0, 7) } : {}) } });
+    // si se edita a mano el monto de un recurrente, la generación del mes ya no lo pisa
+    const lock = cur.recurringId && body.amount !== undefined ? { amountLocked: true } : {};
+    const t = await prisma.transaction.update({ where: { id: cur.id }, data: { ...rest, ...lock, ...(date ? { date: toDbDate(date), period: date.slice(0, 7) } : {}) } });
     return dto(t);
   });
 
   app.delete<{ Params: { id: string } }>("/api/transactions/:id", async (req, reply) => {
+    const tx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
+    if (tx?.recurringId) {
+      // borrar un movimiento recurrente equivale a saltear ese mes: que no se vuelva a generar
+      await prisma.recurringSkip.upsert({
+        where: { recurringId_period: { recurringId: tx.recurringId, period: tx.period } },
+        create: { recurringId: tx.recurringId, period: tx.period }, update: {},
+      });
+    }
     await prisma.transaction.deleteMany({ where: { id: req.params.id } });
     return reply.code(204).send();
   });

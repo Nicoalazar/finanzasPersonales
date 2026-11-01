@@ -67,7 +67,7 @@ export interface AccountDto { id: string; name: string; kind: z.infer<typeof acc
 export interface CategoryDto { id: string; name: string; type: z.infer<typeof categoryType>; parentId: string | null; color: string | null }
 export interface TransactionDto {
   id: string; date: string; period: string; amount: number; type: z.infer<typeof txType>; status: z.infer<typeof txStatus>;
-  description: string; categoryId: string | null; accountId: string; toAccountId: string | null;
+  description: string; categoryId: string | null; accountId: string; toAccountId: string | null; recurringId: string | null;
 }
 /** income no incluye reintegros; netExpense = expense − reimbursements; balance = income − netExpense. */
 export interface MonthSummaryDto { income: number; expense: number; reimbursements: number; netExpense: number; balance: number }
@@ -163,7 +163,47 @@ export interface PersonSummaryDto {
   accrued: number; paid: number; /** accrued − paid: lo que te debe hasta el mes consultado */ balance: number;
   upcoming: number; /** cuotas de meses posteriores */
 }
-export interface PersonLineDto { kind: "CARD" | "CHARGE"; refId: string; description: string; source: string; number: number; count: number; amount: number }
+export interface PersonLineDto { kind: "CARD" | "CHARGE" | "RECURRING"; refId: string; description: string; source: string; number: number; count: number; amount: number }
 export interface PersonMonthDto { month: string; total: number; lines: PersonLineDto[] }
 export interface PersonPaymentDto { id: string; date: string; amount: number; note: string; accountId: string | null }
 export interface PersonDetailDto extends PersonSummaryDto { months: PersonMonthDto[]; payments: PersonPaymentDto[] }
+
+// ---- Recurrentes y grupos compartidos ----
+export const frequency = z.enum(["MONTHLY", "BIMONTHLY", "YEARLY"]);
+const percent = z.number().finite().min(0).max(100);
+
+export const recurringInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  categoryId: z.string().nullable().optional(),
+  frequency: frequency.default("MONTHLY"),
+  accountId: z.string().min(1),
+  sharedGroupId: z.string().nullable().optional(),
+  startMonth: yearMonth,
+  endMonth: yearMonth.nullable().optional(),
+  dayOfMonth: z.number().int().min(1).max(31).default(1),
+  /** precio inicial, vigente desde startMonth */
+  amount: z.number().finite().positive(),
+  shares: z.array(shareInput).default([]),
+});
+export const recurringPatch = recurringInput.omit({ amount: true }).partial();
+export const recurringPriceInput = z.object({ fromMonth: yearMonth, amount: z.number().finite().positive() });
+export const generateInput = z.object({ month: yearMonth });
+export const recurringListQuery = z.object({ month: yearMonth.optional() });
+
+export const sharedGroupInput = z.object({ name: z.string().trim().min(1).max(80), myPercent: percent });
+export const sharedGroupPercentInput = z.object({ month: yearMonth, percent });
+
+export interface RecurringDto {
+  id: string; name: string; categoryId: string | null; frequency: z.infer<typeof frequency>; accountId: string | null;
+  sharedGroupId: string | null; startMonth: string; endMonth: string | null; dayOfMonth: number;
+  prices: { fromMonth: string; amount: number }[];
+  shares: { personId: string; mode: "PERCENT" | "AMOUNT"; value: number }[];
+  /** en el mes consultado */
+  occursThisMonth: boolean; price: number; groupPercent: number | null; myAmount: number;
+}
+export interface SharedGroupDto {
+  id: string; name: string; myPercent: number;
+  overrides: { month: string; percent: number }[];
+  /** % efectivo en el mes consultado y si es propio de ese mes */
+  percent: number; percentIsOwn: boolean;
+}

@@ -72,3 +72,33 @@ describe("fechas de tarjeta", () => {
     expect(statementMonthForPurchase("2026-03-28", "2026-03-27")).toBe("2026-04");
   });
 });
+
+import { nextOccurrences, occursIn, percentAt, priceAt, recurringCents } from "./recurrence.js";
+
+describe("recurrentes", () => {
+  it("frecuencias desde el mes de inicio", () => {
+    const patente = { frequency: "BIMONTHLY" as const, startMonth: "2026-01" };
+    expect([1, 2, 3, 4, 5].map((m) => occursIn(patente, `2026-0${m}`))).toEqual([true, false, true, false, true]);
+    expect(occursIn({ frequency: "YEARLY", startMonth: "2026-03" }, "2027-03")).toBe(true);
+    expect(occursIn({ frequency: "YEARLY", startMonth: "2026-03" }, "2027-04")).toBe(false);
+  });
+  it("respeta inicio y fin", () => {
+    const r = { frequency: "MONTHLY" as const, startMonth: "2026-02", endMonth: "2026-04" };
+    expect(["2026-01", "2026-02", "2026-04", "2026-05"].map((m) => occursIn(r, m))).toEqual([false, true, true, false]);
+    expect(nextOccurrences({ frequency: "BIMONTHLY", startMonth: "2026-01" }, "2026-02", 2)).toEqual(["2026-03", "2026-05"]);
+  });
+  it("precio vigente: alquiler +10% y cochera 78k→91k", () => {
+    const prices = [{ fromMonth: "2026-01", amount: 818760.95 }, { fromMonth: "2026-03", amount: 900637.05 }];
+    expect(priceAt(prices, "2026-02")).toBe(818760.95);
+    expect(priceAt(prices, "2026-07")).toBe(900637.05);
+    expect(priceAt(prices, "2025-12")).toBe(0);
+  });
+  it("porcentaje del grupo mes a mes con herencia", () => {
+    const o = [{ month: "2026-03", percent: 40 }, { month: "2026-05", percent: 30 }];
+    expect([ "2026-01", "2026-03", "2026-04", "2026-05", "2026-09"].map((m) => percentAt(35, o, m))).toEqual([35, 40, 40, 30, 30]);
+  });
+  it("mi parte: 35% del total Hogar", () => {
+    expect(recurringCents(121556465, 35)).toBe(42544763);
+    expect(recurringCents(100000, null)).toBe(100000);
+  });
+});

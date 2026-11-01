@@ -4,8 +4,8 @@ import { api } from "./api";
 
 export const useAccounts = () => useQuery({ queryKey: ["accounts"], queryFn: () => api<AccountDto[]>("/accounts") });
 export const useCategories = () => useQuery({ queryKey: ["categories"], queryFn: () => api<CategoryDto[]>("/categories") });
-export const useTransactions = (month: string) =>
-  useQuery({ queryKey: ["transactions", month], queryFn: () => api<{ items: TransactionDto[]; summary: MonthSummaryDto }>(`/transactions?month=${month}`) });
+export const useTransactions = (month: string, enabled = true) =>
+  useQuery({ queryKey: ["transactions", month], enabled, queryFn: () => api<{ items: TransactionDto[]; summary: MonthSummaryDto }>(`/transactions?month=${month}`) });
 
 /** Ejecuta una mutación y refresca todo lo que depende de movimientos/cuentas/categorías. */
 function useInvalidatingMutation<V, R = unknown>(fn: (v: V) => Promise<R>) {
@@ -64,3 +64,33 @@ export const useFirstMonth = (cardId: string, date: string) =>
   useQuery({ queryKey: ["first-month", cardId, date], enabled: !!date, queryFn: () => api<{ month: string }>(`/cards/${cardId}/first-month?date=${date}`) });
 export const useMovePurchase = () =>
   useInvalidatingMutation((v: { id: string; firstStatementMonth: string }) => api(`/card-purchases/${v.id}`, { method: "PATCH", json: { firstStatementMonth: v.firstStatementMonth } }));
+
+// ---- Recurrentes y grupos ----
+import type { RecurringDto, SharedGroupDto } from "@finanzas/shared";
+
+export const useRecurring = (month: string) => useQuery({ queryKey: ["recurring", month], queryFn: () => api<RecurringDto[]>(`/recurring?month=${month}`) });
+export const useSharedGroups = (month: string) => useQuery({ queryKey: ["shared-groups", month], queryFn: () => api<SharedGroupDto[]>(`/shared-groups?month=${month}`) });
+
+/** Genera los pendientes del mes al abrirlo (idempotente) y refresca los movimientos si hubo cambios. */
+export const useGenerateMonth = (month: string) => {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: ["generate", month],
+    queryFn: async () => {
+      const r = await api<{ created: number; updated: number }>("/recurring/generate", { method: "POST", json: { month } });
+      if (r.created + r.updated > 0) await qc.invalidateQueries({ queryKey: ["transactions"] });
+      return r;
+    },
+  });
+};
+
+export const useCreateRecurring = () => useInvalidatingMutation((v: unknown) => api("/recurring", { method: "POST", json: v }));
+export const usePatchRecurring = () => useInvalidatingMutation((v: { id: string; patch: unknown }) => api(`/recurring/${v.id}`, { method: "PATCH", json: v.patch }));
+export const useDeleteRecurring = () => useInvalidatingMutation((id: string) => api(`/recurring/${id}`, { method: "DELETE" }));
+export const useSetPrice = () =>
+  useInvalidatingMutation((v: { id: string; fromMonth: string; amount: number }) => api(`/recurring/${v.id}/prices`, { method: "PUT", json: { fromMonth: v.fromMonth, amount: v.amount } }));
+export const useCreateGroup = () => useInvalidatingMutation((v: { name: string; myPercent: number }) => api("/shared-groups", { method: "POST", json: v }));
+export const useSetGroupPercent = () =>
+  useInvalidatingMutation((v: { id: string; month: string; percent: number }) => api(`/shared-groups/${v.id}/percent`, { method: "PUT", json: { month: v.month, percent: v.percent } }));
+export const useClearGroupPercent = () =>
+  useInvalidatingMutation((v: { id: string; month: string }) => api(`/shared-groups/${v.id}/percent/${v.month}`, { method: "DELETE" }));

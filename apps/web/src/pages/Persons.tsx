@@ -75,7 +75,7 @@ function Detail({ id }: { id: string }) {
             </div>
             {m.lines.map((l, i) => (
               <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-sm">
-                <span className="flex-1 truncate">{l.description} <span className="text-xs text-slate-500">· {l.source} · {l.number}/{l.count}</span></span>
+                <span className="flex-1 truncate">{l.description} <span className="text-xs text-slate-500">· {l.source}{l.kind !== "RECURRING" && ` · ${l.number}/${l.count}`}</span></span>
                 <span>{formatMoney(l.amount)}</span>
                 {l.kind === "CHARGE" && (
                   <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar cargo" title="Elimina el cargo completo"

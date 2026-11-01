@@ -97,6 +97,8 @@ model Transaction {
   payslip     Payslip?    @relation(fields: [payslipId], references: [id])
   statementId String?
   statement   CardStatement? @relation(fields: [statementId], references: [id])
+  /// true si el monto se editó a mano: la generación de recurrentes ya no lo pisa.
+  amountLocked Boolean @default(false)
   personPaymentId String? @unique
   personPayment   PersonPayment? @relation(fields: [personPaymentId], references: [id], onDelete: Cascade)
   /// Mes (YYYY-MM) al que se imputa; evita duplicar recurrentes.
@@ -205,8 +207,30 @@ model PersonPayment {
 model SharedGroup {
   id        String @id @default(cuid())
   name      String @unique
+  /// Porcentaje base; cada mes puede tener el suyo (SharedGroupPercent) y se hereda hacia adelante.
   myPercent Decimal @db.Decimal(5, 2)
   recurring RecurringExpense[]
+  overrides SharedGroupPercent[]
+}
+
+model SharedGroupPercent {
+  id      String  @id @default(cuid())
+  groupId String
+  group   SharedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  month   String
+  percent Decimal @db.Decimal(5, 2)
+
+  @@unique([groupId, month])
+}
+
+/// Mes salteado a propósito: la generación no vuelve a crear ese pendiente.
+model RecurringSkip {
+  id          String @id @default(cuid())
+  recurringId String
+  recurring   RecurringExpense @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  period      String
+
+  @@unique([recurringId, period])
 }
 
 model RecurringExpense {
@@ -220,6 +244,8 @@ model RecurringExpense {
   sharedGroup   SharedGroup? @relation(fields: [sharedGroupId], references: [id])
   startMonth    String
   endMonth      String?
+  dayOfMonth    Int      @default(1)
+  skips         RecurringSkip[]
   prices        RecurringPriceChange[]
   shares        PersonShare[]
   transactions  Transaction[]
