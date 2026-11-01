@@ -12,6 +12,7 @@ export function Layout() {
         <nav className="flex gap-1">
           <NavLink to="/" end className={link}>Mes</NavLink>
           <NavLink to="/tarjetas" className={link}>Tarjetas</NavLink>
+          <NavLink to="/presupuestos" className={link}>Presupuestos</NavLink>
           <NavLink to="/recurrentes" className={link}>Recurrentes</NavLink>
           <NavLink to="/personas" className={link}>Personas</NavLink>
           <NavLink to="/config" className={link}>Configuración</NavLink>

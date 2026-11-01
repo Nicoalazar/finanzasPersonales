@@ -102,3 +102,23 @@ describe("recurrentes", () => {
     expect(recurringCents(100000, null)).toBe(100000);
   });
 });
+
+import { budgetStatus, increaseCents } from "./budget.js";
+
+describe("presupuestos", () => {
+  it("alerta al 80 % y al 100 %", () => {
+    expect(budgetStatus(7999, 10000)).toEqual({ pct: 80, status: "OK" });
+    expect(budgetStatus(8000, 10000)).toEqual({ pct: 80, status: "WARN" });
+    expect(budgetStatus(9999, 10000).status).toBe("WARN");
+    expect(budgetStatus(10000, 10000)).toEqual({ pct: 100, status: "OVER" });
+    expect(budgetStatus(15000, 10000)).toEqual({ pct: 150, status: "OVER" });
+  });
+  it("sin presupuesto no hay estado", () => {
+    expect(budgetStatus(500, null)).toEqual({ pct: null, status: "NONE" });
+    expect(budgetStatus(500, 0).status).toBe("NONE");
+  });
+  it("copia con +5 %", () => {
+    expect(increaseCents(1000000, 5)).toBe(1050000);
+    expect(increaseCents(33333, 5)).toBe(35000);
+  });
+});

@@ -5,3 +5,4 @@ export * from "./domain/payslip.js";
 export * from "./schemas/index.js";
 export * from "./domain/cardDates.js";
 export * from "./domain/recurrence.js";
+export * from "./domain/budget.js";

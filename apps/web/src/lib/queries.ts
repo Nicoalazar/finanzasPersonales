@@ -94,3 +94,15 @@ export const useSetGroupPercent = () =>
   useInvalidatingMutation((v: { id: string; month: string; percent: number }) => api(`/shared-groups/${v.id}/percent`, { method: "PUT", json: { month: v.month, percent: v.percent } }));
 export const useClearGroupPercent = () =>
   useInvalidatingMutation((v: { id: string; month: string }) => api(`/shared-groups/${v.id}/percent/${v.month}`, { method: "DELETE" }));
+
+// ---- Presupuestos ----
+import type { BudgetsDto } from "@finanzas/shared";
+
+export const useBudgets = (month: string) => useQuery({ queryKey: ["budgets", month], queryFn: () => api<BudgetsDto>(`/budgets?month=${month}`) });
+export const useSetBudget = () =>
+  useInvalidatingMutation((v: { categoryId: string; month: string; amount: number }) => api("/budgets", { method: "PUT", json: v }));
+export const useDeleteBudget = () =>
+  useInvalidatingMutation((v: { categoryId: string; month: string }) => api(`/budgets/${v.categoryId}/${v.month}`, { method: "DELETE" }));
+export const useCopyBudgets = () =>
+  useInvalidatingMutation((v: { fromMonth: string; toMonth: string; increasePercent: number; overwrite: boolean }) =>
+    api<{ copied: number; skipped: number }>("/budgets/copy", { method: "POST", json: v }));

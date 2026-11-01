@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { TransactionForm } from "../components/TransactionForm";
 import { currentMonth, formatDay, formatMoney, monthLabel, shiftMonth } from "../lib/format";
-import { useAccounts, useCategories, useDeleteTransaction, useGenerateMonth, useTransactions, useUpdateTransaction } from "../lib/queries";
+import { useAccounts, useBudgets, useCategories, useDeleteTransaction, useGenerateMonth, useTransactions, useUpdateTransaction } from "../lib/queries";
 
 export function Month() {
   const [month, setMonth] = useState(currentMonth());
@@ -15,6 +16,7 @@ export function Month() {
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "Sin categoría";
   const accName = (id: string) => accounts.find((a) => a.id === id)?.name ?? "?";
   const s = data?.summary;
+  const alerts = useBudgets(month).data?.totals;
 
   return (
     <main className="space-y-4">
@@ -42,6 +44,13 @@ export function Month() {
           <div className={`font-semibold ${(s?.balance ?? 0) < 0 ? "text-rose-600" : "text-slate-900"}`}>{formatMoney(s?.balance ?? 0)}</div>
         </div>
       </section>
+
+      {alerts && (alerts.over > 0 || alerts.warn > 0) && (
+        <Link to="/presupuestos" className="block rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 shadow">
+          Presupuesto: {alerts.over > 0 && <b className="text-rose-700">{alerts.over} superada{alerts.over > 1 ? "s" : ""}</b>}
+          {alerts.over > 0 && alerts.warn > 0 && " · "}{alerts.warn > 0 && <b>{alerts.warn} cerca del límite</b>} →
+        </Link>
+      )}
 
       {adding && <TransactionForm onDone={() => setAdding(false)} />}
 

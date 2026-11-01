@@ -207,3 +207,27 @@ export interface SharedGroupDto {
   /** % efectivo en el mes consultado y si es propio de ese mes */
   percent: number; percentIsOwn: boolean;
 }
+
+// ---- Presupuestos ----
+export const budgetStatusEnum = z.enum(["NONE", "OK", "WARN", "OVER"]);
+export const budgetInput = z.object({ categoryId: z.string().min(1), month: yearMonth, amount: z.number().finite().min(0) });
+export const budgetCopyInput = z
+  .object({
+    fromMonth: yearMonth,
+    toMonth: yearMonth,
+    increasePercent: z.number().finite().min(-100).max(1000).default(0),
+    overwrite: z.boolean().default(false),
+  })
+  .refine((c) => c.fromMonth !== c.toMonth, { message: "Los meses tienen que ser distintos", path: ["toMonth"] });
+export const budgetQuery = z.object({ month: yearMonth });
+
+export interface BudgetRowDto {
+  /** null = movimientos sin categoría (no se les puede fijar presupuesto) */
+  categoryId: string | null; name: string;
+  budget: number | null; spent: number; remaining: number | null;
+  pct: number | null; status: z.infer<typeof budgetStatusEnum>;
+}
+export interface BudgetsDto {
+  month: string; rows: BudgetRowDto[];
+  totals: { budget: number; spentInBudgeted: number; spentTotal: number; pct: number | null; status: z.infer<typeof budgetStatusEnum>; warn: number; over: number };
+}

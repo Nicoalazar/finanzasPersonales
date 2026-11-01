@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Cards } from "./pages/Cards";
+import { Budgets } from "./pages/Budgets";
 import { Recurring } from "./pages/Recurring";
 import { Persons } from "./pages/Persons";
 import { Month } from "./pages/Month";
@@ -23,6 +24,7 @@ function Root() {
       <Route element={<Layout />}>
         <Route index element={<Month />} />
         <Route path="tarjetas" element={<Cards />} />
+        <Route path="presupuestos" element={<Budgets />} />
         <Route path="recurrentes" element={<Recurring />} />
         <Route path="personas" element={<Persons />} />
         <Route path="config" element={<Settings />} />
