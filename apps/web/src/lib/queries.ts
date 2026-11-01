@@ -106,3 +106,16 @@ export const useDeleteBudget = () =>
 export const useCopyBudgets = () =>
   useInvalidatingMutation((v: { fromMonth: string; toMonth: string; increasePercent: number; overwrite: boolean }) =>
     api<{ copied: number; skipped: number }>("/budgets/copy", { method: "POST", json: v }));
+
+// ---- Sueldos ----
+import type { PayslipDto, SacSuggestionDto } from "@finanzas/shared";
+
+export const usePayslips = () => useQuery({ queryKey: ["payslips"], queryFn: () => api<PayslipDto[]>("/payslips") });
+export const useSacSuggestion = (month: string, enabled: boolean) =>
+  useQuery({ queryKey: ["sac-suggestion", month], enabled, queryFn: () => api<SacSuggestionDto>(`/payslips/sac-suggestion?month=${month}`) });
+export const useCreatePayslip = () =>
+  useInvalidatingMutation((v: { month: string; kind: string; gross: number; net: number; date: string; accountId: string; paid: boolean }) =>
+    api("/payslips", { method: "POST", json: v }));
+export const usePatchPayslip = () =>
+  useInvalidatingMutation((v: { id: string; patch: { gross?: number; net?: number; date?: string } }) => api(`/payslips/${v.id}`, { method: "PATCH", json: v.patch }));
+export const useDeletePayslip = () => useInvalidatingMutation((id: string) => api(`/payslips/${id}`, { method: "DELETE" }));

@@ -1,22 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { splitInstallments, firstStatementMonth, addMonths } from "./installments.js";
 import { computeStatement, householdShareCents } from "./cardStatement.js";
-import { computePayslip, computeSac, type Deduction, type Addition } from "./payslip.js";
-
-const additions: Addition[] = [
-  { name: "Título secundario", percent: 0.175 },
-  { name: "Antigüedad", percent: 0.02, multiplier: 8 },
-  { name: "Adicional por grado", percent: 0.27 },
-  { name: "Permanencia", percent: 0.13999111738905201 },
-  { name: "Capacitación", percent: 0.1 },
-];
-const deductions: Deduction[] = [
-  { name: "Jubilación", percent: 0.11, appliesToSac: true },
-  { name: "Ley 19032", percent: 0.03, appliesToSac: true },
-  { name: "Damsu", percent: 0.03, appliesToSac: true },
-  { name: "APUNSJ", percent: 0.02, appliesToSac: false },
-  { name: "Seguro de vida", fixed: 3.8, appliesToSac: false },
-];
 
 describe("cuotas", () => {
   it("20000 en 3 suma exacto", () => {
@@ -38,20 +22,6 @@ describe("resumen de tarjeta y hogar", () => {
   });
   it("Hogar 35%", () => {
     expect(householdShareCents(121556465, 35)).toBe(42544763);
-  });
-});
-
-describe("recibo de sueldo", () => {
-  it("Julio6: neto 1.472.228,69", () => {
-    const r = computePayslip({ basic: 837926.00648899993, additions, deductions, nonRemunerativeBonus: 220000 });
-    expect(r.taxableCents).toBe(154596604);
-    expect(r.deductionsCents).toBe(29373735);
-    expect(r.netCents).toBe(147222869);
-  });
-  it("SAC: neto 641.575,91", () => {
-    const r = computeSac([1545966.039001486], deductions);
-    expect(r.grossCents).toBe(77298302);
-    expect(r.netCents).toBe(64157591);
   });
 });
 
@@ -120,5 +90,19 @@ describe("presupuestos", () => {
   it("copia con +5 %", () => {
     expect(increaseCents(1000000, 5)).toBe(1050000);
     expect(increaseCents(33333, 5)).toBe(35000);
+  });
+});
+
+import { sacSuggestionCents, semesterMonths } from "./salary.js";
+
+describe("sueldos", () => {
+  it("semestre de un mes", () => {
+    expect(semesterMonths("2026-06")).toEqual(["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]);
+    expect(semesterMonths("2026-07")[0]).toBe("2026-07");
+    expect(semesterMonths("2026-12")[5]).toBe("2026-12");
+  });
+  it("SAC = mitad del mayor bruto del semestre (Aguinaldo1: 1.545.966,04 → 772.983,02)", () => {
+    expect(sacSuggestionCents([100000000, 154596604, 120000000])).toBe(77298302);
+    expect(sacSuggestionCents([])).toBeNull();
   });
 });

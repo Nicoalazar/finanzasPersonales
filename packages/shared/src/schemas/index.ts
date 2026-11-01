@@ -231,3 +231,29 @@ export interface BudgetsDto {
   month: string; rows: BudgetRowDto[];
   totals: { budget: number; spentInBudgeted: number; spentTotal: number; pct: number | null; status: z.infer<typeof budgetStatusEnum>; warn: number; over: number };
 }
+
+// ---- Sueldos (solo bruto y neto) ----
+export const payslipKind = z.enum(["MONTHLY", "SAC"]);
+export const payslipInput = z.object({
+  month: yearMonth,
+  kind: payslipKind.default("MONTHLY"),
+  gross: z.number().finite().positive(),
+  net: z.number().finite().positive(),
+  /** fecha en que se cobra: define en qué mes entra el ingreso */
+  date: isoDate,
+  accountId: z.string().min(1),
+  paid: z.boolean().default(true),
+});
+export const payslipPatch = z.object({
+  gross: z.number().finite().positive(),
+  net: z.number().finite().positive(),
+  date: isoDate,
+  accountId: z.string().min(1),
+}).partial();
+export const sacSuggestionQuery = z.object({ month: yearMonth });
+
+export interface PayslipDto {
+  id: string; month: string; kind: z.infer<typeof payslipKind>; gross: number; net: number;
+  date: string | null; accountId: string | null; status: z.infer<typeof txStatus> | null;
+}
+export interface SacSuggestionDto { month: string; basedOnMonths: number; suggestedGross: number | null }

@@ -9,9 +9,10 @@ export function Layout() {
   return (
     <div className="mx-auto max-w-4xl px-4 pb-16">
       <header className="flex flex-wrap items-center justify-between gap-2 py-4">
-        <nav className="flex gap-1">
+        <nav className="flex flex-wrap gap-1">
           <NavLink to="/" end className={link}>Mes</NavLink>
           <NavLink to="/tarjetas" className={link}>Tarjetas</NavLink>
+          <NavLink to="/sueldos" className={link}>Sueldos</NavLink>
           <NavLink to="/presupuestos" className={link}>Presupuestos</NavLink>
           <NavLink to="/recurrentes" className={link}>Recurrentes</NavLink>
           <NavLink to="/personas" className={link}>Personas</NavLink>

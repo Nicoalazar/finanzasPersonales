@@ -279,28 +279,13 @@ model BalanceSnapshot {
   balance   Decimal  @db.Decimal(14, 2)
 }
 
-model SalaryConcept {
-  id            String  @id @default(cuid())
-  name          String
-  isDeduction   Boolean
-  percent       Decimal? @db.Decimal(8, 6)
-  fixedAmount   Decimal? @db.Decimal(14, 2)
-  multiplier    Decimal  @default(1) @db.Decimal(8, 2)
-  appliesToSac  Boolean  @default(false)
-  position      Int      @default(0)
-}
-
+/// Recibo de sueldo simplificado: solo bruto y neto. El ingreso se genera por el neto.
 model Payslip {
-  id        String      @id @default(cuid())
-  month     String
-  kind      PayslipKind @default(MONTHLY)
-  basic     Decimal     @db.Decimal(14, 2)
-  overtimeHours Decimal @default(0) @db.Decimal(6, 2)
-  bonus     Decimal     @default(0) @db.Decimal(14, 2)
-  concepts  Json
-  gross     Decimal     @db.Decimal(14, 2)
-  deductions Decimal    @db.Decimal(14, 2)
-  net       Decimal     @db.Decimal(14, 2)
+  id    String      @id @default(cuid())
+  month String
+  kind  PayslipKind @default(MONTHLY)
+  gross Decimal     @db.Decimal(14, 2)
+  net   Decimal     @db.Decimal(14, 2)
   transactions Transaction[]
 
   @@unique([month, kind])
