@@ -257,3 +257,38 @@ export interface PayslipDto {
   date: string | null; accountId: string | null; status: z.infer<typeof txStatus> | null;
 }
 export interface SacSuggestionDto { month: string; basedOnMonths: number; suggestedGross: number | null }
+
+// ---- Inversiones ----
+export const snapshotInput = z.object({ accountId: z.string().min(1), date: isoDate, balance: z.number().finite().min(0) });
+export const investmentMovementInput = z.object({
+  /** cuenta de inversión */
+  accountId: z.string().min(1),
+  kind: z.enum(["DEPOSIT", "WITHDRAWAL"]),
+  /** la otra punta: de dónde sale el depósito o adónde va el retiro */
+  otherAccountId: z.string().min(1),
+  date: isoDate,
+  amount: z.number().finite().positive(),
+});
+
+export interface InvestmentRowDto {
+  id: string; date: string; theoretical: number; real: number; gain: number; periodGain: number; returnPct: number | null;
+}
+export interface InvestmentMovementDto {
+  id: string; date: string; kind: "DEPOSIT" | "WITHDRAWAL"; amount: number; otherAccountId: string; description: string;
+}
+export interface InvestmentAccountDto {
+  accountId: string; name: string; initialBalance: number;
+  deposits: number; withdrawals: number; theoretical: number;
+  /** último saldo real anotado y la ganancia a esa fecha */
+  lastSnapshot: { id: string; date: string; real: number } | null;
+  gain: number | null; gainPct: number | null;
+  /** último real + movimientos posteriores (o el teórico si nunca anotaste el real) */
+  currentEstimate: number;
+  snapshots: InvestmentRowDto[]; movements: InvestmentMovementDto[];
+}
+export interface InvestmentsDto {
+  accounts: InvestmentAccountDto[];
+  totals: { theoretical: number; currentEstimate: number; gain: number };
+  /** plata invertida por mes (depósitos − retiros) para el dashboard */
+  byMonth: { month: string; deposits: number; withdrawals: number; net: number }[];
+}

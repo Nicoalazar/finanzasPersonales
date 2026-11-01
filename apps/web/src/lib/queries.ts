@@ -119,3 +119,14 @@ export const useCreatePayslip = () =>
 export const usePatchPayslip = () =>
   useInvalidatingMutation((v: { id: string; patch: { gross?: number; net?: number; date?: string } }) => api(`/payslips/${v.id}`, { method: "PATCH", json: v.patch }));
 export const useDeletePayslip = () => useInvalidatingMutation((id: string) => api(`/payslips/${id}`, { method: "DELETE" }));
+
+// ---- Inversiones ----
+import type { InvestmentsDto } from "@finanzas/shared";
+
+export const useInvestments = () => useQuery({ queryKey: ["investments"], queryFn: () => api<InvestmentsDto>("/investments") });
+export const useAddSnapshot = () =>
+  useInvalidatingMutation((v: { accountId: string; date: string; balance: number }) => api("/investments/snapshots", { method: "POST", json: v }));
+export const useDeleteSnapshot = () => useInvalidatingMutation((id: string) => api(`/investments/snapshots/${id}`, { method: "DELETE" }));
+export const useAddInvestmentMovement = () =>
+  useInvalidatingMutation((v: { accountId: string; kind: "DEPOSIT" | "WITHDRAWAL"; otherAccountId: string; date: string; amount: number }) =>
+    api("/investments/movements", { method: "POST", json: v }));

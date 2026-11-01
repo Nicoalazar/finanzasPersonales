@@ -12,6 +12,7 @@ import { accountRoutes } from "./modules/accounts/routes.js";
 import { categoryRoutes } from "./modules/categories/routes.js";
 import { cardRoutes } from "./modules/cards/routes.js";
 import { budgetRoutes } from "./modules/budgets/routes.js";
+import { investmentRoutes } from "./modules/investments/routes.js";
 import { payslipRoutes } from "./modules/payslips/routes.js";
 import { recurringRoutes } from "./modules/recurring/routes.js";
 import { personRoutes } from "./modules/persons/routes.js";
@@ -36,6 +37,7 @@ export async function buildApp() {
   await app.register(recurringRoutes);
   await app.register(budgetRoutes);
   await app.register(payslipRoutes);
+  await app.register(investmentRoutes);
 
   // En producción el mismo servicio sirve el front compilado (SPA).
   const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web/dist");

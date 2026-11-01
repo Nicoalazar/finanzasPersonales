@@ -106,3 +106,32 @@ describe("sueldos", () => {
     expect(sacSuggestionCents([])).toBeNull();
   });
 });
+
+import { currentEstimateCents, investmentRows, theoreticalAt } from "./investments.js";
+
+describe("inversiones", () => {
+  const flows = [{ date: "2026-01-05", cents: 100000000 }, { date: "2026-02-10", cents: 50000000 }];
+  const snaps = [
+    { id: "a", date: "2026-01-31", balanceCents: 101000000 },
+    { id: "b", date: "2026-02-28", balanceCents: 154000000 },
+  ];
+  it("saldo teórico a una fecha", () => {
+    expect(theoreticalAt(0, flows, "2026-01-31")).toBe(100000000);
+    expect(theoreticalAt(0, flows, "2026-02-28")).toBe(150000000);
+    expect(theoreticalAt(20000, flows, "2026-01-01")).toBe(20000);
+  });
+  it("ganancia acumulada, del período y rendimiento", () => {
+    const [jan, feb] = investmentRows(0, flows, snaps);
+    expect(jan).toMatchObject({ theoreticalCents: 100000000, gainCents: 1000000, periodGainCents: 1000000, returnPct: 1 });
+    expect(feb).toMatchObject({ theoreticalCents: 150000000, gainCents: 4000000, periodGainCents: 3000000, returnPct: 1.99 });
+  });
+  it("una pérdida es una ganancia negativa", () => {
+    const [r] = investmentRows(0, flows, [{ id: "x", date: "2026-01-31", balanceCents: 99000000 }]);
+    expect(r).toMatchObject({ gainCents: -1000000, returnPct: -1 });
+  });
+  it("estimación actual = último real + movimientos posteriores", () => {
+    expect(currentEstimateCents(0, flows, [snaps[0]!])).toBe(101000000 + 50000000);
+    expect(currentEstimateCents(0, flows, snaps)).toBe(154000000);
+    expect(currentEstimateCents(5000, flows, [])).toBe(150005000);
+  });
+});

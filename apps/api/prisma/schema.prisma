@@ -277,6 +277,8 @@ model BalanceSnapshot {
   account   Account  @relation(fields: [accountId], references: [id])
   date      DateTime @db.Date
   balance   Decimal  @db.Decimal(14, 2)
+
+  @@unique([accountId, date])
 }
 
 /// Recibo de sueldo simplificado: solo bruto y neto. El ingreso se genera por el neto.
