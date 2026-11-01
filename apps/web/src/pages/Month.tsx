@@ -27,12 +27,19 @@ export function Month() {
       </div>
 
       <section className="grid grid-cols-3 gap-3 text-center">
-        {[["Ingresos", s?.income, "text-emerald-600"], ["Gastos", s?.expense, "text-rose-600"], ["Resultado", s?.balance, (s?.balance ?? 0) < 0 ? "text-rose-600" : "text-slate-900"]].map(([label, v, cls]) => (
-          <div key={label as string} className="rounded-xl bg-white p-3 shadow">
-            <div className="text-xs text-slate-500">{label}</div>
-            <div className={`font-semibold ${cls}`}>{formatMoney((v as number | undefined) ?? 0)}</div>
-          </div>
-        ))}
+        <div className="rounded-xl bg-white p-3 shadow">
+          <div className="text-xs text-slate-500">Ingresos</div>
+          <div className="font-semibold text-emerald-600">{formatMoney(s?.income ?? 0)}</div>
+        </div>
+        <div className="rounded-xl bg-white p-3 shadow">
+          <div className="text-xs text-slate-500">Gasto neto</div>
+          <div className="font-semibold text-rose-600">{formatMoney(s?.netExpense ?? 0)}</div>
+          {(s?.reimbursements ?? 0) > 0 && <div className="text-[11px] text-slate-500">{formatMoney(s!.expense)} − reintegros {formatMoney(s!.reimbursements)}</div>}
+        </div>
+        <div className="rounded-xl bg-white p-3 shadow">
+          <div className="text-xs text-slate-500">Resultado</div>
+          <div className={`font-semibold ${(s?.balance ?? 0) < 0 ? "text-rose-600" : "text-slate-900"}`}>{formatMoney(s?.balance ?? 0)}</div>
+        </div>
       </section>
 
       {adding && <TransactionForm onDone={() => setAdding(false)} />}

@@ -1,22 +1,36 @@
 import type { FastifyInstance } from "fastify";
 import type { CreditCard } from "@prisma/client";
 import {
-  addMonths, cardInput, cardPatch, computeStatement, firstStatementMonth, fromCents, installmentMonths, purchaseInput,
+  addMonths, cardInput, cardPatch, computeStatement, fromCents, purchasePatch, statementMonthForPurchase, installmentMonths, purchaseInput,
   splitInstallments, statementPatch, statementPay, statementQuery, toCents, type CardDto, type CommitmentDto, type PurchaseDto,
 } from "@finanzas/shared";
 import { z } from "zod";
+import { isoDate } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
-import { buildStatement } from "./statement.js";
+import { buildStatement, closingDateFor } from "./statement.js";
 
 const dto = (c: CreditCard): CardDto => ({
   id: c.id, name: c.name, closingDay: c.closingDay, dueDay: c.dueDay, stampTaxRate: num(c.stampTaxRate),
   isThirdParty: c.isThirdParty, payAccountId: c.payAccountId,
 });
 
+/** Mes de resumen de una compra, usando el cierre real de ese mes (editable) y no solo el día por defecto. */
+async function resolveFirstMonth(card: CreditCard, date: string): Promise<string> {
+  return statementMonthForPurchase(date, await closingDateFor(card, date.slice(0, 7)));
+}
+
 export async function cardRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
+
+  app.get<{ Params: { id: string } }>("/api/cards/:id/first-month", async (req, reply) => {
+    const q = parse(z.object({ date: isoDate }), req.query, reply);
+    if (!q) return;
+    const card = await prisma.creditCard.findUnique({ where: { id: req.params.id } });
+    if (!card) return reply.code(404).send({ error: "Tarjeta no encontrada" });
+    return { month: await resolveFirstMonth(card, q.date) };
+  });
 
   app.get("/api/cards", async () => (await prisma.creditCard.findMany({ orderBy: { name: "asc" } })).map(dto));
 
@@ -59,7 +73,7 @@ export async function cardRoutes(app: FastifyInstance) {
     if (personIds.length !== body.shares.length) return reply.code(400).send({ error: "Persona repetida en el reparto" });
     if ((await prisma.person.count({ where: { id: { in: personIds } } })) !== personIds.length) return reply.code(400).send({ error: "Persona inexistente" });
 
-    const first = body.firstStatementMonth ?? firstStatementMonth(toDbDate(body.date), card.closingDay);
+    const first = body.firstStatementMonth ?? (await resolveFirstMonth(card, body.date));
     const amounts = splitInstallments(body.totalAmount, body.installmentCount);
     const months = installmentMonths(first, body.installmentCount);
     const purchase = await prisma.cardPurchase.create({
@@ -71,6 +85,20 @@ export async function cardRoutes(app: FastifyInstance) {
       },
     });
     return reply.code(201).send({ id: purchase.id, firstStatementMonth: first, lastStatementMonth: months[months.length - 1] });
+  });
+
+  /** Cambia el mes de resumen de una compra (mueve todas sus cuotas). */
+  app.patch<{ Params: { id: string } }>("/api/card-purchases/:id", async (req, reply) => {
+    const body = parse(purchasePatch, req.body, reply);
+    if (!body) return;
+    const purchase = await prisma.cardPurchase.findUnique({ where: { id: req.params.id }, include: { installments: true } });
+    if (!purchase) return reply.code(404).send({ error: "Compra no encontrada" });
+    const months = installmentMonths(body.firstStatementMonth, purchase.installmentCount);
+    await prisma.$transaction([
+      prisma.cardPurchase.update({ where: { id: purchase.id }, data: { firstStatementMonth: body.firstStatementMonth } }),
+      ...purchase.installments.map((i) => prisma.cardInstallment.update({ where: { id: i.id }, data: { month: months[i.number - 1]! } })),
+    ]);
+    return { id: purchase.id, firstStatementMonth: body.firstStatementMonth, lastStatementMonth: months[months.length - 1] };
   });
 
   app.delete<{ Params: { id: string } }>("/api/card-purchases/:id", async (req, reply) => {
@@ -90,7 +118,12 @@ export async function cardRoutes(app: FastifyInstance) {
     const body = parse(statementPatch, req.body, reply);
     if (!body) return;
     if (!(await prisma.creditCard.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Tarjeta no encontrada" });
-    const { month, ...fields } = body;
+    const { month, closingDate, dueDate, ...amounts } = body;
+    const fields = {
+      ...amounts,
+      ...(closingDate !== undefined && { closingDate: closingDate ? toDbDate(closingDate) : null }),
+      ...(dueDate !== undefined && { dueDate: dueDate ? toDbDate(dueDate) : null }),
+    };
     await prisma.cardStatement.upsert({
       where: { cardId_month: { cardId: req.params.id, month } },
       create: { cardId: req.params.id, month, ...fields },

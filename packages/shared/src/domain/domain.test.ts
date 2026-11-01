@@ -54,3 +54,21 @@ describe("recibo de sueldo", () => {
     expect(r.netCents).toBe(64157591);
   });
 });
+
+import { dateInMonth, defaultClosingDate, defaultDueDate, statementMonthForPurchase } from "./cardDates.js";
+
+describe("fechas de tarjeta", () => {
+  it("ajusta el día al largo del mes", () => {
+    expect(dateInMonth("2026-02", 31)).toBe("2026-02-28");
+    expect(defaultClosingDate("2026-04", 25)).toBe("2026-04-25");
+  });
+  it("vencimiento del mismo mes o del siguiente según el cierre", () => {
+    expect(defaultDueDate("2026-03", 25, 5)).toBe("2026-04-05");
+    expect(defaultDueDate("2026-03", 5, 20)).toBe("2026-03-20");
+    expect(defaultDueDate("2026-12", 25, 5)).toBe("2027-01-05");
+  });
+  it("compra después del cierre real pasa al mes siguiente", () => {
+    expect(statementMonthForPurchase("2026-03-26", "2026-03-27")).toBe("2026-03");
+    expect(statementMonthForPurchase("2026-03-28", "2026-03-27")).toBe("2026-04");
+  });
+});

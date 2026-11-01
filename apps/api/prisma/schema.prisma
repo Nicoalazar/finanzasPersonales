@@ -68,6 +68,8 @@ model Category {
   children  Category[]   @relation("CategoryTree")
   color     String?
   icon      String?
+  /// Categoría donde se registran los pagos de terceros; se descuenta del gasto para obtener el gasto neto.
+  isReimbursement Boolean @default(false)
   transactions Transaction[]
   budgets   Budget[]
   purchases CardPurchase[]
@@ -95,6 +97,8 @@ model Transaction {
   payslip     Payslip?    @relation(fields: [payslipId], references: [id])
   statementId String?
   statement   CardStatement? @relation(fields: [statementId], references: [id])
+  personPaymentId String? @unique
+  personPayment   PersonPayment? @relation(fields: [personPaymentId], references: [id], onDelete: Cascade)
   /// Mes (YYYY-MM) al que se imputa; evita duplicar recurrentes.
   period      String
   createdAt   DateTime    @default(now())
@@ -149,6 +153,9 @@ model CardStatement {
   month      String
   adjustment Decimal  @default(0) @db.Decimal(14, 2)
   refunds    Decimal  @default(0) @db.Decimal(14, 2)
+  /// Fechas reales de ese resumen; si son null se usan closingDay/dueDay de la tarjeta.
+  closingDate DateTime? @db.Date
+  dueDate     DateTime? @db.Date
   paidAt     DateTime?
   transactions Transaction[]
 
@@ -192,6 +199,7 @@ model PersonPayment {
   date     DateTime @db.Date
   amount   Decimal  @db.Decimal(14, 2)
   note     String   @default("")
+  transaction Transaction?
 }
 
 model SharedGroup {

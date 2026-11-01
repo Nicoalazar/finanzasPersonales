@@ -69,7 +69,8 @@ export interface TransactionDto {
   id: string; date: string; period: string; amount: number; type: z.infer<typeof txType>; status: z.infer<typeof txStatus>;
   description: string; categoryId: string | null; accountId: string; toAccountId: string | null;
 }
-export interface MonthSummaryDto { income: number; expense: number; balance: number }
+/** income no incluye reintegros; netExpense = expense − reimbursements; balance = income − netExpense. */
+export interface MonthSummaryDto { income: number; expense: number; reimbursements: number; netExpense: number; balance: number }
 
 // ---- Tarjetas ----
 export const cardInput = z.object({
@@ -107,7 +108,15 @@ export const purchaseInput = z
     { message: "Los porcentajes repartidos superan 100", path: ["shares"] },
   );
 export const statementQuery = z.object({ month: yearMonth });
-export const statementPatch = z.object({ month: yearMonth, adjustment: z.number().finite().optional(), refunds: z.number().finite().min(0).optional() });
+export const statementPatch = z.object({
+  month: yearMonth,
+  adjustment: z.number().finite().optional(),
+  refunds: z.number().finite().min(0).optional(),
+  /** null vuelve al día por defecto de la tarjeta */
+  closingDate: isoDate.nullable().optional(),
+  dueDate: isoDate.nullable().optional(),
+});
+export const purchasePatch = z.object({ firstStatementMonth: yearMonth });
 export const statementPay = z.object({ month: yearMonth, date: isoDate, accountId: z.string().optional() });
 
 export type CardInput = z.infer<typeof cardInput>;
@@ -130,5 +139,31 @@ export interface StatementDto {
   thirdParty: number; refunds: number; netOwn: number;
   byPerson: { personId: string; name: string; amount: number }[];
   paidAt: string | null;
+  closingDate: string; dueDate: string; closingIsCustom: boolean; dueIsCustom: boolean;
 }
 export interface CommitmentDto { month: string; total: number; byCard: { cardId: string; total: number }[] }
+
+// ---- Personas ----
+export const personPaymentInput = z.object({
+  date: isoDate,
+  amount: z.number().finite().positive(),
+  accountId: z.string().min(1),
+  note: z.string().trim().max(200).default(""),
+});
+export const personChargeInput = z.object({
+  description: z.string().trim().min(1).max(200),
+  totalAmount: z.number().finite().positive(),
+  installmentCount: z.number().int().min(1).max(60).default(1),
+  firstMonth: yearMonth,
+});
+export const asOfQuery = z.object({ asOf: yearMonth.optional() });
+
+export interface PersonSummaryDto {
+  personId: string; name: string;
+  accrued: number; paid: number; /** accrued − paid: lo que te debe hasta el mes consultado */ balance: number;
+  upcoming: number; /** cuotas de meses posteriores */
+}
+export interface PersonLineDto { kind: "CARD" | "CHARGE"; refId: string; description: string; source: string; number: number; count: number; amount: number }
+export interface PersonMonthDto { month: string; total: number; lines: PersonLineDto[] }
+export interface PersonPaymentDto { id: string; date: string; amount: number; note: string; accountId: string | null }
+export interface PersonDetailDto extends PersonSummaryDto { months: PersonMonthDto[]; payments: PersonPaymentDto[] }

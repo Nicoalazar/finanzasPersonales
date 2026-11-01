@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { CardDto, StatementDto } from "@finanzas/shared";
 import { PurchaseForm } from "../components/PurchaseForm";
-import { currentMonth, formatMoney, monthLabel, shiftMonth, today } from "../lib/format";
+import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import {
-  useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
+  useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
 } from "../lib/queries";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
@@ -40,12 +40,14 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
   const pay = usePayStatement(card.id);
   const unpay = useUnpayStatement(card.id);
   const delPurchase = useDeletePurchase();
+  const move = useMovePurchase();
   const [adjustment, setAdjustment] = useState(String(st.adjustment));
   const [refunds, setRefunds] = useState(String(st.refunds));
   const [accountId, setAccountId] = useState(card.payAccountId ?? "");
-  const [payDate, setPayDate] = useState(today());
+  const [payDate, setPayDate] = useState(st.dueDate);
   const [error, setError] = useState("");
   useEffect(() => { setAdjustment(String(st.adjustment)); setRefunds(String(st.refunds)); }, [st.adjustment, st.refunds]);
+  useEffect(() => setPayDate(st.dueDate), [st.dueDate]);
 
   const guard = async (fn: () => Promise<unknown>) => {
     setError("");
@@ -55,6 +57,18 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
 
   return (
     <section className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-white px-4 py-3 text-sm shadow">
+        {([["closingDate", "Cierre", st.closingDate, st.closingIsCustom], ["dueDate", "Vencimiento", st.dueDate, st.dueIsCustom]] as const).map(([key, label, value, custom]) => (
+          <label key={key} className="flex items-center gap-2">
+            <span className="text-slate-500">{label}{custom && " (editado)"}</span>
+            <input className={field} type="date" value={value} required
+              onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ month, [key]: e.target.value }))} />
+            {custom && <button className="text-xs text-slate-500 underline" onClick={() => guard(() => patch.mutateAsync({ month, [key]: null }))}>Restablecer</button>}
+          </label>
+        ))}
+        <p className="w-full text-xs text-slate-500">Las fechas cambian mes a mes. Al editar el cierre, las compras ya cargadas no se mueven solas: usá ‹ › en cada una.</p>
+      </div>
+
       <div className="divide-y rounded-xl bg-white shadow">
         {st.items.length === 0 && <p className="p-4 text-sm text-slate-500">No hay cuotas en este resumen.</p>}
         {st.items.map((i) => (
@@ -67,6 +81,13 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
               </div>
             </div>
             <span className="text-sm font-medium">{formatMoney(i.amount)}</span>
+            {[-1, 1].map((d) => (
+              <button key={d} className="px-1 text-slate-400 hover:text-slate-900" aria-label={d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"}
+                title={`${d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"} (mueve toda la compra)`}
+                onClick={() => guard(() => move.mutateAsync({ id: i.purchaseId, firstStatementMonth: shiftMonth(month, d - (i.number - 1)) }))}>
+                {d < 0 ? "‹" : "›"}
+              </button>
+            ))}
             <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar compra" title="Eliminar la compra completa"
               onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && delPurchase.mutate(i.purchaseId)}>✕</button>
           </div>
@@ -156,7 +177,7 @@ export function Cards() {
             </div>
             {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Compra</button>}
           </div>
-          <p className="-mt-2 text-xs text-slate-500">Cierra el día {card.closingDay} · vence el día {card.dueDay}</p>
+          <p className="-mt-2 text-xs text-slate-500">Por defecto cierra el día {card.closingDay} y vence el {card.dueDay}</p>
           {adding && <PurchaseForm card={card} onDone={() => setAdding(false)} />}
           {st && <StatementView key={`${card.id}-${month}`} card={card} st={st} month={month} />}
         </>

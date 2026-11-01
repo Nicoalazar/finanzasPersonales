@@ -42,3 +42,25 @@ export const usePayStatement = (cardId: string) =>
   useInvalidatingMutation((v: { month: string; date: string; accountId?: string }) => api(`/cards/${cardId}/statement/pay`, { method: "POST", json: v }));
 export const useUnpayStatement = (cardId: string) =>
   useInvalidatingMutation((month: string) => api(`/cards/${cardId}/statement/pay?month=${month}`, { method: "DELETE" }));
+
+// ---- Personas ----
+import type { PersonDetailDto, PersonSummaryDto } from "@finanzas/shared";
+
+export const usePersonsSummary = () => useQuery({ queryKey: ["persons-summary"], queryFn: () => api<PersonSummaryDto[]>("/persons/summary") });
+export const usePersonDetail = (id: string | undefined) =>
+  useQuery({ queryKey: ["person", id], enabled: !!id, queryFn: () => api<PersonDetailDto>(`/persons/${id}`) });
+export const useAddPayment = (personId: string) =>
+  useInvalidatingMutation((v: { date: string; amount: number; accountId: string; note: string }) => api(`/persons/${personId}/payments`, { method: "POST", json: v }));
+export const useDeletePayment = (personId: string) =>
+  useInvalidatingMutation((id: string) => api(`/persons/${personId}/payments/${id}`, { method: "DELETE" }));
+export const useAddCharge = (personId: string) =>
+  useInvalidatingMutation((v: { description: string; totalAmount: number; installmentCount: number; firstMonth: string }) =>
+    api(`/persons/${personId}/charges`, { method: "POST", json: v }));
+export const useDeleteCharge = (personId: string) =>
+  useInvalidatingMutation((id: string) => api(`/persons/${personId}/charges/${id}`, { method: "DELETE" }));
+
+// ---- Fechas de tarjeta ----
+export const useFirstMonth = (cardId: string, date: string) =>
+  useQuery({ queryKey: ["first-month", cardId, date], enabled: !!date, queryFn: () => api<{ month: string }>(`/cards/${cardId}/first-month?date=${date}`) });
+export const useMovePurchase = () =>
+  useInvalidatingMutation((v: { id: string; firstStatementMonth: string }) => api(`/card-purchases/${v.id}`, { method: "PATCH", json: { firstStatementMonth: v.firstStatementMonth } }));

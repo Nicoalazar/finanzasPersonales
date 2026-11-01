@@ -10,6 +10,19 @@ const dto = (t: Transaction): TransactionDto => ({
   description: t.description, categoryId: t.categoryId, accountId: t.accountId, toAccountId: t.toAccountId,
 });
 
+/** Los reintegros de terceros no son ingreso propio: se descuentan del gasto (gasto neto). */
+export function summarize(rows: { type: string; amount: unknown; category: { isReimbursement: boolean } | null }[]): MonthSummaryDto {
+  let income = 0, expense = 0, reimbursements = 0;
+  for (const t of rows) {
+    const a = num(t.amount as { toString(): string });
+    if (t.type === "EXPENSE") expense += a;
+    else if (t.type === "INCOME") (t.category?.isReimbursement ? (reimbursements += a) : (income += a));
+  }
+  const r = (n: number) => Math.round(n * 100) / 100;
+  const netExpense = r(expense - reimbursements);
+  return { income: r(income), expense: r(expense), reimbursements: r(reimbursements), netExpense, balance: r(income - netExpense) };
+}
+
 export async function transactionRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
@@ -19,16 +32,9 @@ export async function transactionRoutes(app: FastifyInstance) {
     const rows = await prisma.transaction.findMany({
       where: { period: q.month, type: q.type, categoryId: q.categoryId, status: q.status, ...(q.accountId ? { OR: [{ accountId: q.accountId }, { toAccountId: q.accountId }] } : {}) },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      include: { category: { select: { isReimbursement: true } } },
     });
-    const summary: MonthSummaryDto = { income: 0, expense: 0, balance: 0 };
-    for (const t of rows) {
-      if (t.type === "INCOME") summary.income += num(t.amount);
-      else if (t.type === "EXPENSE") summary.expense += num(t.amount);
-    }
-    summary.income = Math.round(summary.income * 100) / 100;
-    summary.expense = Math.round(summary.expense * 100) / 100;
-    summary.balance = Math.round((summary.income - summary.expense) * 100) / 100;
-    return { items: rows.map(dto), summary };
+    return { items: rows.map(dto), summary: summarize(rows) };
   });
 
   /** Valida que cuentas y categoría existan y que la categoría coincida con el tipo del movimiento. */

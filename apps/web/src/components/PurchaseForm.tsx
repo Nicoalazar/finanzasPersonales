@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { firstStatementMonth, splitInstallments } from "@finanzas/shared";
+import { splitInstallments } from "@finanzas/shared";
 import type { CardDto } from "@finanzas/shared";
 import { formatMoney, monthLabel, today } from "../lib/format";
-import { useCategories, useCreatePerson, useCreatePurchase, usePersons } from "../lib/queries";
+import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, usePersons } from "../lib/queries";
 
 const field = "w-full rounded border bg-white px-2 py-1.5 text-sm";
 interface ShareRow { personId: string; mode: "PERCENT" | "AMOUNT"; value: string }
@@ -23,7 +23,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
 
   const total = Number(amount.replace(",", ".")) || 0;
   const n = Math.max(1, Math.floor(Number(count)) || 1);
-  const first = firstStatementMonth(new Date(`${date}T12:00:00Z`), card.closingDay);
+  const first = useFirstMonth(card.id, date).data?.month;
   const cuota = total > 0 ? splitInstallments(total, n)[0]! / 100 : 0;
 
   const setShare = (i: number, patch: Partial<ShareRow>) => setShares(shares.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -64,7 +64,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
       <input className={field} inputMode="decimal" placeholder="Monto total" value={amount} onChange={(e) => setAmount(e.target.value)} required />
       <input className={field} type="number" min={1} max={60} value={count} onChange={(e) => setCount(e.target.value)} aria-label="Cuotas" />
       <p className="col-span-2 self-center text-xs text-slate-500">
-        {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {monthLabel(first)}
+        {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {first ? monthLabel(first) : "…"}
       </p>
 
       <div className="col-span-2 space-y-2 sm:col-span-4">

@@ -40,7 +40,7 @@ describe("movimientos", () => {
     await call("POST", "/api/transactions", { date: "2026-04-01", amount: 10, type: "EXPENSE", categoryId: food, accountId: bank });
     const r = (await call("GET", "/api/transactions?month=2026-03")).json();
     expect(r.items).toHaveLength(4);
-    expect(r.summary).toEqual({ income: 5000, expense: 2199.5, balance: 2800.5 });
+    expect(r.summary).toEqual({ income: 5000, expense: 2199.5, reimbursements: 0, netExpense: 2199.5, balance: 2800.5 });
     expect((await call("GET", "/api/transactions?month=2026-04")).json().items).toHaveLength(1);
   });
 
