@@ -5,3 +5,5 @@ excels/
 *.log
 .DS_Store
 seed.local.json
+.neon
+.env.neon
