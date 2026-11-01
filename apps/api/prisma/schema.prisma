@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TxType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+enum TxStatus {
+  PENDING
+  PAID
+}
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+enum AccountKind {
+  CASH
+  BANK
+  WALLET
+  INVESTMENT
+}
+enum ShareMode {
+  PERCENT
+  AMOUNT
+}
+enum Frequency {
+  MONTHLY
+  BIMONTHLY
+  YEARLY
+}
+enum PayslipKind {
+  MONTHLY
+  SAC
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Account {
+  id             String      @id @default(cuid())
+  name           String
+  kind           AccountKind @default(BANK)
+  initialBalance Decimal     @default(0) @db.Decimal(14, 2)
+  archived       Boolean     @default(false)
+  transactions   Transaction[] @relation("TxAccount")
+  incoming       Transaction[] @relation("TxToAccount")
+  snapshots      BalanceSnapshot[]
+  cards          CreditCard[]
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  name      String
+  type      CategoryType
+  parentId  String?
+  parent    Category?    @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[]   @relation("CategoryTree")
+  color     String?
+  icon      String?
+  transactions Transaction[]
+  budgets   Budget[]
+  purchases CardPurchase[]
+  recurring RecurringExpense[]
+
+  @@unique([name, type])
+}
+
+model Transaction {
+  id          String      @id @default(cuid())
+  date        DateTime    @db.Date
+  amount      Decimal     @db.Decimal(14, 2)
+  type        TxType
+  status      TxStatus    @default(PAID)
+  description String      @default("")
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  accountId   String
+  account     Account     @relation("TxAccount", fields: [accountId], references: [id])
+  toAccountId String?
+  toAccount   Account?    @relation("TxToAccount", fields: [toAccountId], references: [id])
+  recurringId String?
+  recurring   RecurringExpense? @relation(fields: [recurringId], references: [id])
+  payslipId   String?
+  payslip     Payslip?    @relation(fields: [payslipId], references: [id])
+  statementId String?
+  statement   CardStatement? @relation(fields: [statementId], references: [id])
+  /// Mes (YYYY-MM) al que se imputa; evita duplicar recurrentes.
+  period      String
+  createdAt   DateTime    @default(now())
+
+  @@index([period])
+  @@unique([recurringId, period])
+}
+
+model CreditCard {
+  id            String   @id @default(cuid())
+  name          String
+  closingDay    Int
+  dueDay        Int
+  stampTaxRate  Decimal  @default(0.007) @db.Decimal(6, 4)
+  isThirdParty  Boolean  @default(false)
+  payAccountId  String?
+  payAccount    Account? @relation(fields: [payAccountId], references: [id])
+  purchases     CardPurchase[]
+  statements    CardStatement[]
+}
+
+model CardPurchase {
+  id          String   @id @default(cuid())
+  cardId      String
+  card        CreditCard @relation(fields: [cardId], references: [id])
+  date        DateTime @db.Date
+  description String
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  totalAmount Decimal  @db.Decimal(14, 2)
+  installmentCount Int @default(1)
+  firstStatementMonth String
+  installments CardInstallment[]
+  shares      PersonShare[]
+}
+
+model CardInstallment {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   CardPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  number     Int
+  month      String
+  amount     Decimal  @db.Decimal(14, 2)
+
+  @@index([month])
+}
+
+model CardStatement {
+  id         String   @id @default(cuid())
+  cardId     String
+  card       CreditCard @relation(fields: [cardId], references: [id])
+  month      String
+  adjustment Decimal  @default(0) @db.Decimal(14, 2)
+  refunds    Decimal  @default(0) @db.Decimal(14, 2)
+  paidAt     DateTime?
+  transactions Transaction[]
+
+  @@unique([cardId, month])
+}
+
+model Person {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  shares   PersonShare[]
+  charges  PersonCharge[]
+  payments PersonPayment[]
+}
+
+model PersonShare {
+  id          String   @id @default(cuid())
+  personId    String
+  person      Person   @relation(fields: [personId], references: [id])
+  purchaseId  String?
+  purchase    CardPurchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  recurringId String?
+  recurring   RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  mode        ShareMode
+  value       Decimal  @db.Decimal(14, 2)
+}
+
+model PersonCharge {
+  id          String   @id @default(cuid())
+  personId    String
+  person      Person   @relation(fields: [personId], references: [id])
+  description String
+  totalAmount Decimal  @db.Decimal(14, 2)
+  installmentCount Int @default(1)
+  firstMonth  String
+}
+
+model PersonPayment {
+  id       String   @id @default(cuid())
+  personId String
+  person   Person   @relation(fields: [personId], references: [id])
+  date     DateTime @db.Date
+  amount   Decimal  @db.Decimal(14, 2)
+  note     String   @default("")
+}
+
+model SharedGroup {
+  id        String @id @default(cuid())
+  name      String @unique
+  myPercent Decimal @db.Decimal(5, 2)
+  recurring RecurringExpense[]
+}
+
+model RecurringExpense {
+  id            String   @id @default(cuid())
+  name          String
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  frequency     Frequency @default(MONTHLY)
+  accountId     String?
+  sharedGroupId String?
+  sharedGroup   SharedGroup? @relation(fields: [sharedGroupId], references: [id])
+  startMonth    String
+  endMonth      String?
+  prices        RecurringPriceChange[]
+  shares        PersonShare[]
+  transactions  Transaction[]
+}
+
+model RecurringPriceChange {
+  id          String   @id @default(cuid())
+  recurringId String
+  recurring   RecurringExpense @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  fromMonth   String
+  amount      Decimal  @db.Decimal(14, 2)
+
+  @@unique([recurringId, fromMonth])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  month      String
+  amount     Decimal  @db.Decimal(14, 2)
+
+  @@unique([categoryId, month])
+}
+
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  date      DateTime @db.Date
+  balance   Decimal  @db.Decimal(14, 2)
+}
+
+model SalaryConcept {
+  id            String  @id @default(cuid())
+  name          String
+  isDeduction   Boolean
+  percent       Decimal? @db.Decimal(8, 6)
+  fixedAmount   Decimal? @db.Decimal(14, 2)
+  multiplier    Decimal  @default(1) @db.Decimal(8, 2)
+  appliesToSac  Boolean  @default(false)
+  position      Int      @default(0)
+}
+
+model Payslip {
+  id        String      @id @default(cuid())
+  month     String
+  kind      PayslipKind @default(MONTHLY)
+  basic     Decimal     @db.Decimal(14, 2)
+  overtimeHours Decimal @default(0) @db.Decimal(6, 2)
+  bonus     Decimal     @default(0) @db.Decimal(14, 2)
+  concepts  Json
+  gross     Decimal     @db.Decimal(14, 2)
+  deductions Decimal    @db.Decimal(14, 2)
+  net       Decimal     @db.Decimal(14, 2)
+  transactions Transaction[]
+
+  @@unique([month, kind])
+}

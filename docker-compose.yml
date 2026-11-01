@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: finanzas
+      POSTGRES_PASSWORD: finanzas
+      POSTGRES_DB: finanzas
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finanzas"]
+      interval: 3s
+      retries: 20
+
+  app:
+    build: .
+    profiles: ["app"]
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql://finanzas:finanzas@db:5432/finanzas
+      JWT_SECRET: dev-secret-change-me
+      ADMIN_EMAIL: admin@local.test
+      ADMIN_PASSWORD: admin1234
+      NODE_ENV: production
+      PORT: "3000"
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
