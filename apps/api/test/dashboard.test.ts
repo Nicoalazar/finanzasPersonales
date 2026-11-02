@@ -64,7 +64,8 @@ describe("dashboard", () => {
     expect(d.budgets.totals).toMatchObject({ over: 1, warn: 0 });
     expect(d.budgets.flagged.map((r: any) => [r.name, r.status])).toEqual([["Comida", "OVER"]]);
     expect(d.debtors.map((p: any) => [p.name, p.balance])).toEqual([["Beto", 500]]); // Ana ya pagó todo
-    expect(d.netWorth).toEqual({ cash: 947972, investments: 0, total: 947972 });
+    expect(d.netWorth).toMatchObject({ cash: 947972, investments: 0, total: 947972 });
+    expect(d.netWorth.accounts.reduce((a: number, x: any) => a + x.balance, 0)).toBeCloseTo(947972, 2);
   });
 
   it("agrupa las categorías sobrantes en 'Otras' y valida parámetros", async () => {

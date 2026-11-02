@@ -62,6 +62,19 @@ export function Dashboard() {
             <Tile label="Patrimonio" value={formatMoney(d.netWorth.total)} sub={`cuentas ${formatMoney(d.netWorth.cash)} · inversiones ${formatMoney(d.netWorth.investments)}`} />
           </section>
 
+          <section className={`${card} space-y-2`}>
+            <div className="flex items-baseline justify-between"><h2 className="font-semibold">Saldos por cuenta</h2><span className="text-xs text-slate-500">hoy · inversiones al valor estimado</span></div>
+            {d.netWorth.accounts.length === 0 && <p className="text-sm text-slate-500">No tenés cuentas cargadas.</p>}
+            <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+              {d.netWorth.accounts.map((a) => (
+                <div key={a.accountId} className="flex justify-between gap-2 text-sm">
+                  <span className="truncate">{a.name}{a.kind === "INVESTMENT" && <span className="ml-1 text-xs text-slate-500">inversión</span>}</span>
+                  <span className={`tabular-nums ${a.balance < 0 ? "text-rose-600" : ""}`}>{formatMoney(a.balance)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
           <section className={`${card} space-y-3`}>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Gastos e ingresos por mes</h2>

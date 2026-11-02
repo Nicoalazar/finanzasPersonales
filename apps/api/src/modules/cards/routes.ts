@@ -171,21 +171,16 @@ export async function cardRoutes(app: FastifyInstance) {
     return buildStatement(req.params.id, q.month);
   });
 
-  // ---- compromisos futuros ----
+  // ---- compromisos futuros: neto propio de cada resumen (sin lo de terceros ni reintegros) ----
   app.get("/api/cards/commitments", async (req, reply) => {
     const q = parse(z.object({ from: z.string().regex(/^\d{4}-\d{2}$/), months: z.coerce.number().int().min(1).max(36).default(12) }), req.query, reply);
     if (!q) return;
     const range = installmentMonths(q.from, q.months);
-    const [rows, cards] = await Promise.all([
-      prisma.cardInstallment.findMany({ where: { month: { in: range } }, include: { purchase: { select: { cardId: true } } } }),
-      prisma.creditCard.findMany(),
-    ]);
-    const rate = new Map(cards.map((c) => [c.id, num(c.stampTaxRate)]));
-    return range.map((month): CommitmentDto => {
-      const per = new Map<string, number>();
-      for (const r of rows) if (r.month === month) per.set(r.purchase.cardId, (per.get(r.purchase.cardId) ?? 0) + toCents(num(r.amount)));
-      const byCard = [...per].map(([cardId, sub]) => ({ cardId, total: fromCents(computeStatement({ installmentsCents: [sub], stampTaxRate: rate.get(cardId) ?? 0 }).totalCents) }));
-      return { month, byCard, total: Math.round(byCard.reduce((a, c) => a + c.total, 0) * 100) / 100 };
-    });
+    const cards = await prisma.creditCard.findMany({ select: { id: true } });
+    return Promise.all(range.map(async (month): Promise<CommitmentDto> => {
+      const sts = await Promise.all(cards.map((c) => buildStatement(c.id, month)));
+      const byCard = sts.filter((st) => st && st.subtotal > 0).map((st) => ({ cardId: st!.cardId, total: st!.netOwn }));
+      return { month, byCard, total: fromCents(byCard.reduce((a, c) => a + toCents(c.total), 0)) };
+    }));
   });
 }

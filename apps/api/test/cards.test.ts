@@ -68,9 +68,9 @@ describe("resumen", () => {
 });
 
 describe("compromisos", () => {
-  it("proyecta el total por mes con impuesto", async () => {
+  it("proyecta el neto propio por mes (con impuesto, sin terceros ni reintegros)", async () => {
     const r = (await call("GET", "/api/cards/commitments?from=2026-03&months=4")).json();
-    expect(r.map((m: any) => [m.month, m.total])).toEqual([["2026-03", 6713.34], ["2026-04", 7720.34], ["2026-05", 6713.33], ["2026-06", 0]]);
+    expect(r.map((m: any) => [m.month, m.total])).toEqual([["2026-03", 3430], ["2026-04", 4387], ["2026-05", 3380], ["2026-06", 0]]);
   });
 
   it("borrar una compra elimina sus cuotas", async () => {

@@ -145,6 +145,7 @@ export interface StatementDto {
   paidAt: string | null;
   closingDate: string; dueDate: string; closingIsCustom: boolean; dueIsCustom: boolean;
 }
+/** total y byCard.total son el neto propio de cada resumen (total − terceros − reintegros). */
 export interface CommitmentDto { month: string; total: number; byCard: { cardId: string; total: number }[] }
 
 // ---- Personas ----
@@ -337,7 +338,11 @@ export interface DashboardDto {
     /** neto propio de los resúmenes de tarjeta del mes (sin lo de terceros ni reintegros) y su relación con el ingreso (%) */
     cardNet: number; cardRatio: number | null;
   };
-  netWorth: { cash: number; investments: number; total: number };
+  netWorth: {
+    cash: number; investments: number; total: number;
+    /** saldo de cada cuenta activa (las de inversión, al valor estimado) */
+    accounts: { accountId: string; name: string; kind: z.infer<typeof accountKind>; balance: number }[];
+  };
   series: DashboardSeriesPoint[];
   categories: { categoryId: string | null; name: string; amount: number; pct: number }[];
   budgets: { totals: BudgetsDto["totals"]; flagged: BudgetRowDto[] };

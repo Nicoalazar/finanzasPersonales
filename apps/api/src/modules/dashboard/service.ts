@@ -59,8 +59,13 @@ export async function buildDashboard(month: string, months: number): Promise<Das
   const cardNetCents = statements.reduce((a, s) => a + toCents(s?.netOwn ?? 0), 0);
 
   // ---- patrimonio: cuentas comunes + inversiones al valor estimado ----
-  const cashCents = accounts.reduce((a, x) => a + toCents(num(x.initialBalance)) + toCents(balances.get(x.id) ?? 0), 0);
+  const accountCents = accounts.map((x) => ({ x, cents: toCents(num(x.initialBalance)) + toCents(balances.get(x.id) ?? 0) }));
+  const cashCents = accountCents.reduce((a, r) => a + r.cents, 0);
   const investCents = toCents(investments.totals.currentEstimate);
+  const accountRows = [
+    ...accountCents.map(({ x, cents }) => ({ accountId: x.id, name: x.name, kind: x.kind, balance: fromCents(cents) })),
+    ...investments.accounts.map((i) => ({ accountId: i.accountId, name: i.name, kind: "INVESTMENT" as const, balance: i.currentEstimate })),
+  ];
 
   // ---- categorías (devengado, incluye tarjeta): top 8 + Otras ----
   const nameOf = new Map(categories.map((c) => [c.id, c.name]));
@@ -78,7 +83,7 @@ export async function buildDashboard(month: string, months: number): Promise<Das
       expenseRatio: pct1(toCents(cur.netExpense), income), savingsRate: pct1(toCents(cur.balance), income),
       cardNet: fromCents(cardNetCents), cardRatio: pct1(cardNetCents, income),
     },
-    netWorth: { cash: fromCents(cashCents), investments: fromCents(investCents), total: fromCents(cashCents + investCents) },
+    netWorth: { cash: fromCents(cashCents), investments: fromCents(investCents), total: fromCents(cashCents + investCents), accounts: accountRows },
     series, categories: top,
     budgets: { totals: budgets.totals, flagged: budgets.rows.filter((r) => r.status === "OVER" || r.status === "WARN").sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0)).slice(0, 5) },
     debtors: people.filter((p) => p.balance > 0).sort((a, b) => b.balance - a.balance),

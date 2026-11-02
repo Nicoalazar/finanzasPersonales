@@ -185,7 +185,7 @@ export function Cards() {
 
       {commitments.some((m) => m.total > 0) && (
         <section>
-          <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses</h2>
+          <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses <span className="text-xs font-normal text-slate-500">· neto propio, sin lo de terceros</span></h2>
           <div className="divide-y rounded-xl bg-white shadow">
             {commitments.map((m) => (
               <div key={m.month} className="flex items-baseline justify-between px-4 py-2 text-sm">

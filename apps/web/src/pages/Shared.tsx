@@ -32,7 +32,7 @@ function ImportResult({ r }: { r: SharedImportResultDto }) {
 }
 
 function Config({ config, onError }: { config: SharedConfigDto; onError: (m: string) => void }) {
-  const accounts = useAccounts().data?.filter((a) => !a.archived && a.kind !== "INVESTMENT") ?? [];
+  const accounts = useAccounts().data?.filter((a) => !a.archived) ?? [];
   const groups = useSharedGroups(currentMonth()).data ?? [];
   const patch = usePatchSharedConfig();
   const [f, setF] = useState(config);
@@ -117,7 +117,7 @@ export function Shared() {
   const [adding, setAdding] = useState(false);
   const config = useSharedConfig().data;
   const { data: m } = useSharedMonth(month);
-  const accounts = useAccounts().data?.filter((a) => !a.archived && a.kind !== "INVESTMENT") ?? [];
+  const accounts = useAccounts().data?.filter((a) => !a.archived) ?? [];
   const cards = useCards().data ?? [];
   const categories = useCategories().data?.filter((c) => c.type === "EXPENSE") ?? [];
   const imp = useImportShared();
