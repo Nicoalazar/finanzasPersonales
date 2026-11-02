@@ -7,15 +7,20 @@ import { fromDbDate, num } from "../../lib.js";
 
 const r2 = (cents: number) => fromCents(cents);
 
-/** Depósitos = transferencias hacia la cuenta de inversión; retiros = transferencias desde ella. Solo las pagadas. */
+/**
+ * Depósitos = transferencias hacia la cuenta de inversión; retiros = transferencias desde ella. Solo las pagadas.
+ * Los ingresos y gastos cargados directo en la cuenta (pagar algo desde la billetera) también mueven el saldo:
+ * cuentan como depósito/retiro para el teórico y la estimación, pero no como movimiento de inversión.
+ */
 export async function buildInvestments(): Promise<InvestmentsDto> {
     const accounts = await prisma.account.findMany({ where: { kind: "INVESTMENT", archived: false }, orderBy: { name: "asc" } });
     const ids = accounts.map((a) => a.id);
-    const [transfers, snapshots] = await Promise.all([
+    const [transfers, direct, snapshots] = await Promise.all([
       prisma.transaction.findMany({
         where: { type: "TRANSFER", status: "PAID", OR: [{ accountId: { in: ids } }, { toAccountId: { in: ids } }] },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       }),
+      prisma.transaction.findMany({ where: { type: { in: ["INCOME", "EXPENSE"] }, status: "PAID", accountId: { in: ids } } }),
       prisma.balanceSnapshot.findMany({ where: { accountId: { in: ids } } }),
     ]);
 
@@ -40,6 +45,10 @@ export async function buildInvestments(): Promise<InvestmentsDto> {
           flows.push({ date, cents: -cents });
           movements.push({ id: t.id, date, kind: "WITHDRAWAL", amount: r2(cents), otherAccountId: t.toAccountId!, description: t.description });
         }
+      }
+      for (const t of direct) if (t.accountId === a.id) {
+        const cents = toCents(num(t.amount));
+        flows.push({ date: fromDbDate(t.date), cents: t.type === "INCOME" ? cents : -cents });
       }
       for (const m of movements) bumpMonth(m.date.slice(0, 7), m.kind === "DEPOSIT" ? "deposits" : "withdrawals", toCents(m.amount));
 

@@ -96,3 +96,16 @@ describe("validaciones", () => {
     expect((await call("POST", "/api/investments/movements", { accountId: brubank, kind: "DEPOSIT", otherAccountId: "nope", date: "2026-03-01", amount: 5 })).statusCode).toBe(400);
   });
 });
+
+describe("gastos e ingresos directos", () => {
+  it("pagar algo desde una cuenta de inversión baja la estimación igual que el saldo", async () => {
+    const wallet = (await call("POST", "/api/accounts", { name: "Billetera", kind: "INVESTMENT", initialBalance: 1000 })).json().id;
+    await call("POST", "/api/transactions", { date: "2026-05-02", amount: 300, type: "EXPENSE", accountId: wallet, description: "Compra" });
+    await call("POST", "/api/transactions", { date: "2026-05-03", amount: 50, type: "INCOME", accountId: wallet, description: "Devolución" });
+    const inv = (await call("GET", "/api/investments")).json().accounts.find((a: any) => a.accountId === wallet);
+    const acc = (await call("GET", "/api/accounts")).json().find((a: any) => a.id === wallet);
+    expect(inv.currentEstimate).toBe(750);
+    expect(acc.balance).toBe(750);
+    expect(inv.movements).toHaveLength(0);
+  });
+});
