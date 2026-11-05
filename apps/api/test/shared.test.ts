@@ -132,4 +132,20 @@ describe("gastos compartidos", () => {
     expect(m.total).toBe(165000);
     expect(m.paidByMe + m.paidByPartner).toBe(m.total);
   });
+
+  it("un recurrente con parte de la pareja: pago yo el total y ella me devuelve su parte", async () => {
+    const euge = (await call("POST", "/api/persons", { name: "Euge" })).json().id;
+    const guille = (await call("POST", "/api/persons", { name: "Guille" })).json().id;
+    const before = await month();
+    await call("POST", "/api/recurring", { name: "Internet", amount: 100000, startMonth: "2026-01", accountId: bank, shares: [{ personId: euge, mode: "PERCENT", value: 50 }] });
+    await call("POST", "/api/recurring", { name: "Spotify", amount: 8000, startMonth: "2026-01", accountId: bank, shares: [{ personId: guille, mode: "PERCENT", value: 50 }] });
+    const m = await month();
+    expect(m.recurring.map((r: any) => r.name).sort()).toEqual(["Expensas", "Internet"]); // Guille no es la pareja
+    expect(m.total).toBe(before.total + 100000);
+    expect(m.myShare).toBe(before.myShare + 50000);
+    expect(m.paidByMe).toBe(before.paidByMe + 100000);
+    expect(m.balance).toBe(before.balance + 50000);
+    expect(m.pending).toBe(before.pending + 50000);
+    expect(m.overlappingRecurring).toEqual(["Expensas"]);
+  });
 });
