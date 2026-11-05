@@ -1,17 +1,20 @@
-import { defaultDueDate, fromCents, installmentMonths, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
+import { addMonths, defaultDueDate, fromCents, installmentMonths, occursIn, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
-import { fromDbDate, num } from "../../lib.js";
+import { currentMonth, fromDbDate, num } from "../../lib.js";
+import { loadRecurring, splitOf } from "../recurring/service.js";
+import { getLedger } from "../shared/service.js";
 import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 
 export interface Accrual { personId: string; month: string; cents: number; line: PersonLineDto }
 
 /**
- * Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas (los recurrentes van a Compartidos, no acá).
+ * Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas + lo que le toca de los recurrentes de un grupo suyo.
+ * Los recurrentes del grupo de Compartidos (Hogar) no van acá: van a Compartidos.
  * Las cuotas de tarjeta se imputan al mes en que VENCE el resumen (la tarjeta se paga a mes vencido):
  * el resumen de octubre que vence en noviembre cuenta en noviembre.
  */
 export async function accruals(personId?: string): Promise<Accrual[]> {
-  const [installments, charges, customDue, rates] = await Promise.all([
+  const [installments, charges, customDue, rates, ledger] = await Promise.all([
     prisma.cardInstallment.findMany({
       where: { purchase: { shares: { some: personId ? { personId } : {} } } },
       include: { purchase: { include: { shares: true, card: true } } },
@@ -19,6 +22,7 @@ export async function accruals(personId?: string): Promise<Accrual[]> {
     prisma.personCharge.findMany({ where: personId ? { personId } : {} }),
     prisma.cardStatement.findMany({ where: { dueDate: { not: null } }, select: { cardId: true, month: true, dueDate: true } }),
     loadStatementRates(),
+    getLedger(),
   ]);
   const dueOverride = new Map(customDue.map((s) => [`${s.cardId}|${s.month}`, fromDbDate(s.dueDate!).slice(0, 7)]));
   const dueMonth = (card: { id: string; closingDay: number; dueDay: number }, statementMonth: string) =>
@@ -47,6 +51,24 @@ export async function accruals(personId?: string): Promise<Accrual[]> {
         line: { kind: "CHARGE", refId: c.id, description: c.description, source: "Cargo manual", number: idx + 1, count: c.installmentCount, amount: fromCents(cents) },
       }),
     );
+  }
+
+  // Recurrentes de un grupo con persona (que no sea el de Compartidos): la persona debe lo que no es mi %, hasta 12 meses a futuro.
+  const groupRecurring = await loadRecurring({ sharedGroup: { personId: personId ?? { not: null } }, ...(ledger.groupId ? { sharedGroupId: { not: ledger.groupId } } : {}) });
+  const skips = groupRecurring.length ? await prisma.recurringSkip.findMany({ where: { recurringId: { in: groupRecurring.map((r) => r.id) } } }) : [];
+  const skipped = new Set(skips.map((s) => `${s.recurringId}|${s.period}`));
+  const horizon = addMonths(currentMonth(), 12);
+  for (const r of groupRecurring) {
+    const last = r.endMonth && r.endMonth < horizon ? r.endMonth : horizon;
+    for (let m = r.startMonth; m <= last; m = addMonths(m, 1)) {
+      if (!occursIn(r, m) || skipped.has(`${r.id}|${m}`)) continue;
+      const cents = splitOf(r, m).owedCents;
+      if (cents <= 0) continue;
+      out.push({
+        personId: r.sharedGroup!.personId!, month: m, cents,
+        line: { kind: "RECURRING", refId: r.id, description: r.name, source: r.sharedGroup!.name, number: 1, count: 1, amount: fromCents(cents) },
+      });
+    }
   }
   return out;
 }

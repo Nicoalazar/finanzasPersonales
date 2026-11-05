@@ -92,7 +92,8 @@ export const usePatchRecurring = () => useInvalidatingMutation((v: { id: string;
 export const useDeleteRecurring = () => useInvalidatingMutation((id: string) => api(`/recurring/${id}`, { method: "DELETE" }));
 export const useSetPrice = () =>
   useInvalidatingMutation((v: { id: string; fromMonth: string; amount: number }) => api(`/recurring/${v.id}/prices`, { method: "PUT", json: { fromMonth: v.fromMonth, amount: v.amount } }));
-export const useCreateGroup = () => useInvalidatingMutation((v: { name: string; myPercent: number }) => api("/shared-groups", { method: "POST", json: v }));
+export const useCreateGroup = () => useInvalidatingMutation((v: { name: string; myPercent: number; personId: string | null }) => api("/shared-groups", { method: "POST", json: v }));
+export const usePatchGroup = () => useInvalidatingMutation((v: { id: string; patch: { personId?: string | null; name?: string; myPercent?: number } }) => api(`/shared-groups/${v.id}`, { method: "PATCH", json: v.patch }));
 export const useSetGroupPercent = () =>
   useInvalidatingMutation((v: { id: string; month: string; percent: number }) => api(`/shared-groups/${v.id}/percent`, { method: "PUT", json: { month: v.month, percent: v.percent } }));
 export const useClearGroupPercent = () =>
