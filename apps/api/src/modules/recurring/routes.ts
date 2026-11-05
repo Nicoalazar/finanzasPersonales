@@ -62,12 +62,16 @@ export async function recurringRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string } }>("/api/recurring/:id", async (req, reply) => {
     const body = parse(recurringPatch, req.body, reply);
     if (!body) return;
-    if (!(await prisma.recurringExpense.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Recurrente no encontrado" });
+    const current = await prisma.recurringExpense.findUnique({ where: { id: req.params.id } });
+    if (!current) return reply.code(404).send({ error: "Recurrente no encontrado" });
     const err = await checkRefs(body);
     if (err) return bad(reply, err);
     const { shares, ...rest } = body;
+    const accountChanged = !!body.accountId && body.accountId !== current.accountId;
     await prisma.$transaction([
       ...(shares ? [prisma.personShare.deleteMany({ where: { recurringId: req.params.id } })] : []),
+      // Los pendientes ya generados pasan a la cuenta nueva (aunque tengan el monto editado); lo pagado no se toca.
+      ...(accountChanged ? [prisma.transaction.updateMany({ where: { recurringId: req.params.id, status: "PENDING" }, data: { accountId: body.accountId! } })] : []),
       prisma.recurringExpense.update({ where: { id: req.params.id }, data: { ...rest, ...(shares ? { shares: { create: shares } } : {}) } }),
     ]);
     return { id: req.params.id };

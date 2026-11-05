@@ -50,8 +50,11 @@ function Config({ config, onError }: { config: SharedConfigDto; onError: (m: str
   };
 
   return (
-    <details className="rounded-xl bg-white shadow" open={!config.defaultAccountId}>
-      <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Configuración del formulario</summary>
+    <details className="rounded-xl bg-white shadow">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+        Configuración del formulario
+        {!config.defaultAccountId && <span className="ml-2 text-xs font-normal text-amber-700">· falta elegir la cuenta de mis pagos</span>}
+      </summary>
       <form onSubmit={save} className="grid gap-3 px-4 pb-4 text-sm sm:grid-cols-2">
         <label className="space-y-1"><span className="text-xs text-slate-500">Mi nombre en "Pagado por"</span>
           <input className={`${field} w-full`} value={f.meName} onChange={set("meName")} required /></label>

@@ -74,9 +74,17 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
         <div className="min-w-32 flex-1">
           <div className="font-medium">{r.name}</div>
           <div className="text-xs text-slate-500">
-            {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`} · {accounts.find((a) => a.id === r.accountId)?.name ?? "sin cuenta"}
+            {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`}
             {r.shares.map((s) => ` · ${personName(s.personId)} ${s.value}${s.mode === "PERCENT" ? "%" : " $"}`).join("")}
           </div>
+          <label className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+            Cuenta
+            <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
+              onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ id: r.id, patch: { accountId: e.target.value } }))()}>
+              {!r.accountId && <option value="">Sin cuenta</option>}
+              {accounts.filter((a) => !a.archived || a.id === r.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? " (archivada)" : ""}</option>)}
+            </select>
+          </label>
         </div>
         <div className="text-right text-sm">
           {r.occursThisMonth ? (
