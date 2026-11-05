@@ -48,6 +48,11 @@ describe("cotización sugerida", () => {
     expect((await call("GET", `/api/fx/usd?cardId=${visa}`)).json()).toEqual({ rate: null, source: null, asOf: null });
   });
 
+  it("entiende la respuesta real de DolarApi (dolares/oficial)", () => {
+    const real = { moneda: "USD", casa: "oficial", nombre: "Oficial", compra: 1520, venta: 1570, fechaActualizacion: "2026-11-05T18:00:00.000Z" };
+    expect(parseQuote(real)).toEqual({ rate: 1570, updatedAt: "2026-11-05T18:00:00.000Z" });
+  });
+
   it("descarta respuestas que no sirven", () => {
     expect(parseQuote(quote("abc"))).toBeNull();
     expect(parseQuote(quote(0))).toBeNull();
