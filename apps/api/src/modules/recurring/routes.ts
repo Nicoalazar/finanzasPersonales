@@ -8,15 +8,18 @@ import { z } from "zod";
 import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { currentMonth, num, parse } from "../../lib.js";
-import { generateMonth, groupPercentOf, loadRecurring, myCents, priceOf, type LoadedRecurring } from "./service.js";
+import { generateMonth, groupPercentOf, loadRecurring, priceOf, splitOf, type LoadedRecurring } from "./service.js";
 
-const dto = (r: LoadedRecurring, month: string): RecurringDto => ({
-  id: r.id, name: r.name, categoryId: r.categoryId, frequency: r.frequency, accountId: r.accountId, sharedGroupId: r.sharedGroupId,
-  startMonth: r.startMonth, endMonth: r.endMonth, dayOfMonth: r.dayOfMonth,
-  prices: r.prices.map((p) => ({ fromMonth: p.fromMonth, amount: num(p.amount) })).sort((a, b) => a.fromMonth.localeCompare(b.fromMonth)),
-  shares: r.shares.map((s) => ({ personId: s.personId, mode: s.mode, value: num(s.value) })),
-  occursThisMonth: occursIn(r, month), price: priceOf(r, month), groupPercent: groupPercentOf(r, month), myAmount: fromCents(myCents(r, month)),
-});
+const dto = (r: LoadedRecurring, month: string): RecurringDto => {
+  const split = splitOf(r, month);
+  return {
+    id: r.id, name: r.name, categoryId: r.categoryId, frequency: r.frequency, accountId: r.accountId, sharedGroupId: r.sharedGroupId,
+    startMonth: r.startMonth, endMonth: r.endMonth, dayOfMonth: r.dayOfMonth,
+    prices: r.prices.map((p) => ({ fromMonth: p.fromMonth, amount: num(p.amount) })).sort((a, b) => a.fromMonth.localeCompare(b.fromMonth)),
+    shares: r.shares.map((s) => ({ personId: s.personId, mode: s.mode, value: num(s.value) })),
+    occursThisMonth: occursIn(r, month), price: priceOf(r, month), groupPercent: groupPercentOf(r, month), myAmount: fromCents(split.paidCents), owedAmount: fromCents(split.owedCents),
+  };
+};
 
 /** Valida referencias; devuelve el mensaje de error o null. */
 async function checkRefs(b: { accountId?: string | null; categoryId?: string | null; sharedGroupId?: string | null; shares?: { personId: string; mode: string; value: number }[] }): Promise<string | null> {
@@ -114,10 +117,10 @@ export async function recurringRoutes(app: FastifyInstance) {
   });
 
   // ---- grupos compartidos (Hogar) ----
-  const groupDto = (g: { id: string; name: string; myPercent: unknown; overrides: { month: string; percent: unknown }[] }, month: string): SharedGroupDto => {
+  const groupDto = (g: { id: string; name: string; myPercent: unknown; personId: string | null; overrides: { month: string; percent: unknown }[] }, month: string): SharedGroupDto => {
     const overrides = g.overrides.map((o) => ({ month: o.month, percent: num(o.percent as { toString(): string }) })).sort((a, b) => a.month.localeCompare(b.month));
     const base = num(g.myPercent as { toString(): string });
-    return { id: g.id, name: g.name, myPercent: base, overrides, percent: percentAt(base, overrides, month), percentIsOwn: overrides.some((o) => o.month === month) };
+    return { id: g.id, name: g.name, myPercent: base, personId: g.personId, overrides, percent: percentAt(base, overrides, month), percentIsOwn: overrides.some((o) => o.month === month) };
   };
 
   app.get("/api/shared-groups", async (req, reply) => {
@@ -131,6 +134,7 @@ export async function recurringRoutes(app: FastifyInstance) {
     const body = parse(sharedGroupInput, req.body, reply);
     if (!body) return;
     if (await prisma.sharedGroup.findUnique({ where: { name: body.name } })) return reply.code(409).send({ error: "Ya existe un grupo con ese nombre" });
+    if (body.personId && !(await prisma.person.findUnique({ where: { id: body.personId } }))) return bad(reply, "Persona inexistente");
     const g = await prisma.sharedGroup.create({ data: body, include: { overrides: true } });
     return reply.code(201).send(groupDto(g, currentMonth()));
   });
@@ -139,6 +143,7 @@ export async function recurringRoutes(app: FastifyInstance) {
     const body = parse(sharedGroupInput.partial(), req.body, reply);
     if (!body) return;
     if (!(await prisma.sharedGroup.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Grupo no encontrado" });
+    if (body.personId && !(await prisma.person.findUnique({ where: { id: body.personId } }))) return bad(reply, "Persona inexistente");
     const g = await prisma.sharedGroup.update({ where: { id: req.params.id }, data: body, include: { overrides: true } });
     return groupDto(g, currentMonth());
   });

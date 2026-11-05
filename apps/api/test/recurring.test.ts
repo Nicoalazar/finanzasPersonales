@@ -20,7 +20,7 @@ beforeAll(async () => {
   const base = { categoryId: cat, accountId: bank, startMonth: "2026-01" };
   alquiler = (await call("POST", "/api/recurring", { ...base, name: "Alquiler", amount: 100000, sharedGroupId: hogar, dayOfMonth: 5 })).json().id;
   patente = (await call("POST", "/api/recurring", { ...base, name: "Patente", amount: 23000, frequency: "BIMONTHLY" })).json().id;
-  youtube = (await call("POST", "/api/recurring", { ...base, name: "YouTube", amount: 8000, shares: [{ personId: guille, mode: "PERCENT", value: 50 }] })).json().id;
+  youtube = (await call("POST", "/api/recurring", { ...base, name: "YouTube", amount: 8000 })).json().id;
 });
 afterAll(async () => {
   await app.close();
@@ -125,14 +125,37 @@ describe("protecciones", () => {
   });
 });
 
-describe("terceros y baja", () => {
-  it("los recurrentes no suman al saldo de las personas", async () => {
-    const s = (await call("GET", "/api/persons/summary?asOf=2026-03")).json().find((p: any) => p.personId === guille);
-    expect(s).toMatchObject({ accrued: 0, balance: 0 });
-    const d = (await call("GET", `/api/persons/${guille}?asOf=2026-03`)).json();
-    expect(d.months).toEqual([]);
+describe("grupo con persona asignada", () => {
+  it("pago el total y la persona debe lo que no es mi %, en Personas si el grupo no es el de Compartidos", async () => {
+    expect((await call("GET", "/api/shared/config")).json().groupId).toBe(hogar); // el ledger se fija en Hogar
+    const viajes = (await call("POST", "/api/shared-groups", { name: "Viajes", myPercent: 40, personId: guille })).json();
+    expect(viajes).toMatchObject({ name: "Viajes", personId: guille });
+    expect((await call("POST", "/api/shared-groups", { name: "X", myPercent: 40, personId: "nope" })).statusCode).toBe(400);
+    const id = (await call("POST", "/api/recurring", { name: "Hotel", amount: 10000, startMonth: "2027-01", accountId: bank, categoryId: cat, sharedGroupId: viajes.id })).json().id;
+    // sale de mi cuenta el total; la persona debe el 60%
+    await gen("2027-01");
+    expect(byDesc(await month("2027-01"), "Hotel")).toMatchObject({ amount: 10000 });
+    const r = (await call("GET", "/api/recurring?month=2027-01")).json().find((x: any) => x.id === id);
+    expect(r).toMatchObject({ myAmount: 10000, owedAmount: 6000, groupPercent: 40 });
+    const s = (await call("GET", "/api/persons/summary?asOf=2027-01")).json().find((p: any) => p.personId === guille);
+    expect(s).toMatchObject({ accrued: 6000, balance: 6000 });
+    const d = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json();
+    expect(d.months[0].lines[0]).toMatchObject({ kind: "RECURRING", description: "Hotel", amount: 6000 });
+    // un mes salteado no se le cobra
+    await call("DELETE", `/api/transactions/${byDesc(await month("2027-01"), "Hotel").id}`);
+    const months = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json().months.map((m: any) => m.month);
+    expect(months).not.toContain("2027-01");
+    expect(months).toContain("2027-02");
   });
 
+  it("el grupo de Compartidos no suma en Personas aunque tenga persona", async () => {
+    expect((await call("PATCH", `/api/shared-groups/${hogar}`, { personId: guille })).statusCode).toBe(200);
+    const d = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json();
+    expect(d.months.flatMap((m: any) => m.lines.map((l: any) => l.description))).not.toContain("Alquiler");
+  });
+});
+
+describe("baja", () => {
   it("eliminar un recurrente borra sus pendientes y conserva los pagados", async () => {
     expect((await call("DELETE", `/api/recurring/${alquiler}`)).statusCode).toBe(204);
     expect(byDesc(await month("2026-03"), "Alquiler")).toMatchObject({ status: "PAID" });

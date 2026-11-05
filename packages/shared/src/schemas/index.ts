@@ -224,7 +224,7 @@ export const recurringPriceInput = z.object({ fromMonth: yearMonth, amount: z.nu
 export const generateInput = z.object({ month: yearMonth });
 export const recurringListQuery = z.object({ month: yearMonth.optional() });
 
-export const sharedGroupInput = z.object({ name: z.string().trim().min(1).max(80), myPercent: percent });
+export const sharedGroupInput = z.object({ name: z.string().trim().min(1).max(80), myPercent: percent, personId: z.string().nullable().optional() });
 export const sharedGroupPercentInput = z.object({ month: yearMonth, percent });
 
 export interface RecurringDto {
@@ -232,11 +232,13 @@ export interface RecurringDto {
   sharedGroupId: string | null; startMonth: string; endMonth: string | null; dayOfMonth: number;
   prices: { fromMonth: string; amount: number }[];
   shares: { personId: string; mode: "PERCENT" | "AMOUNT"; value: number }[];
-  /** en el mes consultado */
-  occursThisMonth: boolean; price: number; groupPercent: number | null; myAmount: number;
+  /** en el mes consultado: myAmount es lo que sale de mi cuenta; owedAmount, lo que me debe la persona del grupo */
+  occursThisMonth: boolean; price: number; groupPercent: number | null; myAmount: number; owedAmount: number;
 }
 export interface SharedGroupDto {
   id: string; name: string; myPercent: number;
+  /** Con quién se comparte: me debe lo que no es mi % de lo recurrente del grupo. */
+  personId: string | null;
   overrides: { month: string; percent: number }[];
   /** % efectivo en el mes consultado y si es propio de ese mes */
   percent: number; percentIsOwn: boolean;

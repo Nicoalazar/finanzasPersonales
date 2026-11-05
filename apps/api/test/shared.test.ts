@@ -127,9 +127,24 @@ describe("gastos compartidos", () => {
     await call("POST", "/api/recurring", { name: "Expensas", amount: 30000, startMonth: "2026-01", accountId: bank, sharedGroupId: hogar });
     const m = await month();
     expect(m.overlappingRecurring).toEqual(["Expensas"]);
-    // el recurrente del grupo suma al total y a las partes, sin tocar el saldo
-    expect(m.recurring).toMatchObject([{ name: "Expensas", total: 30000 }]);
+    // grupo sin persona: cada uno paga lo suyo, suma al total y a las partes sin tocar el saldo
+    expect(m.recurring).toMatchObject([{ name: "Expensas", total: 30000, myShare: 10500 }]);
     expect(m.total).toBe(165000);
     expect(m.paidByMe + m.paidByPartner).toBe(m.total);
+  });
+
+  it("grupo con persona: pago el total y la persona me debe lo que no es mi %", async () => {
+    const before = await month();
+    const euge = (await call("POST", "/api/persons", { name: "Euge" })).json().id;
+    await call("PATCH", `/api/shared-groups/${hogar}`, { personId: euge });
+    const m = await month();
+    // Expensas 30.000: mi parte 35% = 10.500, Euge me debe 19.500 (antes cada uno pagaba lo suyo)
+    expect(m.total).toBe(before.total);
+    expect(m.myShare).toBe(before.myShare);
+    expect(m.paidByMe).toBe(before.paidByMe + 19500);
+    expect(m.balance).toBe(before.balance + 19500);
+    expect(m.pending).toBe(before.pending + 19500);
+    // y no suma en Personas (va a Compartidos)
+    expect((await call("GET", `/api/persons/${euge}?asOf=2026-03`)).json().months).toEqual([]);
   });
 });

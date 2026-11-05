@@ -17,9 +17,21 @@ export const groupPercentOf = (r: LoadedRecurring, month: string): number | null
     ? percentAt(num(r.sharedGroup.myPercent), r.sharedGroup.overrides.map((o) => ({ month: o.month, percent: num(o.percent) })), month)
     : null;
 
-/** Lo que me toca pagar en el mes (centavos): precio vigente × % del grupo. */
-export const myCents = (r: LoadedRecurring, month: string): number =>
-  recurringCents(toCents(priceOf(r, month)), groupPercentOf(r, month));
+/**
+ * Cómo se reparte un recurrente en el mes (centavos).
+ *  · Grupo con persona asignada: pago yo el total y la persona me debe lo que no es mi %.
+ *  · Grupo sin persona: cada uno paga lo suyo, de mi cuenta sale solo mi %.
+ *  · Sin grupo: es todo mío.
+ */
+export function splitOf(r: LoadedRecurring, month: string) {
+  const totalCents = toCents(priceOf(r, month));
+  const mineCents = recurringCents(totalCents, groupPercentOf(r, month));
+  const shared = !!r.sharedGroup?.personId;
+  return { totalCents, mineCents, paidCents: shared ? totalCents : mineCents, owedCents: shared ? totalCents - mineCents : 0 };
+}
+
+/** Lo que sale de mi cuenta en el mes (centavos). */
+export const paidCents = (r: LoadedRecurring, month: string): number => splitOf(r, month).paidCents;
 
 const isUniqueViolation = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002";
 
@@ -40,7 +52,7 @@ export async function generateMonth(month: string): Promise<{ created: number; u
 
   for (const r of recs) {
     if (skipped.has(r.id)) continue;
-    const cents = myCents(r, month);
+    const cents = paidCents(r, month);
     if (cents <= 0) continue;
     const amount = cents / 100;
     const data = {

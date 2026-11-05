@@ -198,6 +198,7 @@ model Person {
   shares   PersonShare[]
   charges  PersonCharge[]
   payments PersonPayment[]
+  groups   SharedGroup[]
 }
 
 model PersonShare {
@@ -237,6 +238,9 @@ model SharedGroup {
   name      String @unique
   /// Porcentaje base; cada mes puede tener el suyo (SharedGroupPercent) y se hereda hacia adelante.
   myPercent Decimal @db.Decimal(5, 2)
+  /// Con quién se comparte el grupo: lo recurrente del grupo lo pago entero yo y esta persona me debe lo que no es mi %.
+  personId  String?
+  person    Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   recurring RecurringExpense[]
   overrides SharedGroupPercent[]
   ledgers   SharedLedger[]

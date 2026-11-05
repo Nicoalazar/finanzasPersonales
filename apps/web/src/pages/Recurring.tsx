@@ -5,7 +5,7 @@ import { iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import {
   useAccounts, useCategories, useClearGroupPercent, useCreateGroup, useCreateRecurring, useDeleteRecurring, usePatchRecurring,
-  usePersons, useRecurring, useSetGroupPercent, useSetPrice, useSharedGroups,
+  usePatchGroup, usePersons, useRecurring, useSetGroupPercent, useSetPrice, useSharedGroups,
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
@@ -26,6 +26,8 @@ function useGuard() {
 function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
   const set = useSetGroupPercent();
   const clear = useClearGroupPercent();
+  const patch = usePatchGroup();
+  const persons = usePersons().data ?? [];
   const { error, guard } = useGuard();
   const [value, setValue] = useState(String(group.percent));
   useEffect(() => setValue(String(group.percent)), [group.percent, month]);
@@ -38,6 +40,14 @@ function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
         <div className="text-xs text-slate-500">
           {group.percentIsOwn ? `Valor propio de ${monthLabel(month)}` : `Heredado (último valor cargado o base ${group.myPercent}%)`}
         </div>
+        <label className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+          Se comparte con
+          <select className="rounded border bg-white px-1 py-0.5 text-xs" value={group.personId ?? ""} aria-label={`Persona de ${group.name}`} disabled={patch.isPending}
+            onChange={(e) => guard(() => patch.mutateAsync({ id: group.id, patch: { personId: e.target.value || null } }))()}>
+            <option value="">Nadie (cada uno paga lo suyo)</option>
+            {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
       </div>
       <label className="flex items-center gap-2 text-sm">
         Mi parte en {monthLabel(month)}
@@ -64,7 +74,7 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
   const [amount, setAmount] = useState("");
   const [pct, setPct] = useState("");
   const group = groups.find((g) => g.id === r.sharedGroupId);
-  const personName = (id: string) => persons.find((p) => p.id === id)?.name ?? "?";
+  const personName = persons.find((p) => p.id === groups.find((g) => g.id === r.sharedGroupId)?.personId)?.name;
 
   const applyPct = () => {
     const n = parseNum(pct);
@@ -78,22 +88,34 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
           <div className="font-medium">{r.name}</div>
           <div className="text-xs text-slate-500">
             {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`}
-            {r.shares.map((s) => ` · ${personName(s.personId)} ${s.value}${s.mode === "PERCENT" ? "%" : " $"}`).join("")}
           </div>
-          <label className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-            Cuenta
-            <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
-              onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ id: r.id, patch: { accountId: e.target.value } }))()}>
-              {!r.accountId && <option value="">Sin cuenta</option>}
-              {accounts.filter((a) => !a.archived || a.id === r.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? " (archivada)" : ""}</option>)}
-            </select>
-          </label>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <label className="flex items-center gap-1 text-xs text-slate-500">
+              Cuenta
+              <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
+                onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ id: r.id, patch: { accountId: e.target.value } }))()}>
+                {!r.accountId && <option value="">Sin cuenta</option>}
+                {accounts.filter((a) => !a.archived || a.id === r.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? " (archivada)" : ""}</option>)}
+              </select>
+            </label>
+            {groups.length > 0 && (
+              <label className="flex items-center gap-1 text-xs text-slate-500">
+                Grupo
+                <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.sharedGroupId ?? ""} aria-label={`Grupo de ${r.name}`} disabled={patch.isPending}
+                  onChange={(e) => guard(() => patch.mutateAsync({ id: r.id, patch: { sharedGroupId: e.target.value || null } }))()}>
+                  <option value="">Ninguno (todo mío)</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
         <div className="text-right text-sm">
           {r.occursThisMonth ? (
             <>
               <div className="font-semibold">{formatMoney(r.myAmount)}</div>
-              {group && <div className="text-xs text-slate-500">{r.groupPercent}% de {formatMoney(r.price)}</div>}
+              {group && r.owedAmount > 0 && <div className="text-xs text-slate-500">{personName ?? "Te"} {personName ? "te debe" : "debe"} {formatMoney(r.owedAmount)} ({100 - (r.groupPercent ?? 0)}% de {formatMoney(r.price)})</div>}
+              {group && r.owedAmount === 0 && <div className="text-xs text-slate-500">{r.groupPercent}% de {formatMoney(r.price)}</div>}
             </>
           ) : <span className="text-xs text-slate-500">No corresponde este mes</span>}
         </div>
@@ -122,18 +144,13 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
   );
 }
 
-interface ShareRow { personId: string; mode: "PERCENT" | "AMOUNT"; value: string }
-
 function NewRecurringForm({ month, groups, onDone }: { month: string; groups: SharedGroupDto[]; onDone: () => void }) {
   const accounts = useAccounts().data?.filter((a) => !a.archived) ?? [];
   const categories = (useCategories().data ?? []).filter((c) => c.type === "EXPENSE");
-  const persons = usePersons().data ?? [];
   const create = useCreateRecurring();
   const { error, guard } = useGuard();
   const [f, setF] = useState({ name: "", amount: "", frequency: "MONTHLY", dayOfMonth: "1", startMonth: month, accountId: "", categoryId: "", sharedGroupId: "" });
-  const [shares, setShares] = useState<ShareRow[]>([]);
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
-  const setShare = (i: number, patch: Partial<ShareRow>) => setShares(shares.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
   if (accounts.length === 0) return <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Primero creá una cuenta en Configuración.</p>;
   return (
@@ -142,7 +159,6 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
         await create.mutateAsync({
           name: f.name, amount: parseNum(f.amount), frequency: f.frequency, dayOfMonth: Number(f.dayOfMonth) || 1, startMonth: f.startMonth,
           accountId: f.accountId || accounts[0]!.id, categoryId: f.categoryId || null, sharedGroupId: f.sharedGroupId || null,
-          shares: shares.filter((s) => s.personId).map((s) => ({ personId: s.personId, mode: s.mode, value: parseNum(s.value) })),
         });
         onDone();
       })}>
@@ -161,27 +177,9 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
       <select className={`${field} col-span-2`} value={f.sharedGroupId} onChange={(e) => set({ sharedGroupId: e.target.value })} aria-label="Grupo compartido">
-        <option value="">Pago el total</option>
-        {groups.map((g) => <option key={g.id} value={g.id}>Compartido: {g.name} (pago solo mi %)</option>)}
+        <option value="">Todo mío</option>
+        {groups.map((g) => <option key={g.id} value={g.id}>Compartido: {g.name}{g.personId ? " (pago el total y me devuelve su parte)" : " (pago solo mi %)"}</option>)}
       </select>
-      <div className="col-span-2 space-y-2 sm:col-span-4">
-        <div className="text-xs font-medium text-slate-500">Parte de terceros sobre lo que me toca pagar (opcional)</div>
-        {shares.map((s, i) => (
-          <div key={i} className="flex gap-2">
-            <select className={`${field} flex-1`} value={s.personId} onChange={(e) => setShare(i, { personId: e.target.value })} required>
-              <option value="">Persona</option>
-              {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
-              <option value="PERCENT">% del monto</option><option value="AMOUNT">$ por mes</option>
-            </select>
-            <NumberInput className={`${field} w-24`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
-            <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
-          </div>
-        ))}
-        <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={() => setShares([...shares, { personId: "", mode: "PERCENT", value: "50" }])}>+ Persona</button>
-        {persons.length === 0 && <span className="ml-2 text-xs text-slate-500">Las personas se crean al cargar una compra con tarjeta.</span>}
-      </div>
       {error && <p className="col-span-2 text-sm text-red-600 sm:col-span-4">{error}</p>}
       <div className="col-span-2 flex gap-2 sm:col-span-4">
         <button className="rounded bg-slate-900 px-4 py-1.5 text-sm text-white">Guardar</button>
@@ -194,10 +192,11 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
 export function Recurring() {
   const [month, setMonth] = useState(currentMonth());
   const [adding, setAdding] = useState(false);
-  const [newGroup, setNewGroup] = useState({ name: "", percent: "35" });
+  const [newGroup, setNewGroup] = useState({ name: "", percent: "35", personId: "" });
   const recurring = useRecurring(month).data ?? [];
   const groups = useSharedGroups(month).data ?? [];
   const createGroup = useCreateGroup();
+  const persons = usePersons().data ?? [];
   const { error, guard } = useGuard();
   const total = recurring.filter((r) => r.occursThisMonth).reduce((a, r) => a + r.myAmount, 0);
 
@@ -211,8 +210,12 @@ export function Recurring() {
       <section className="space-y-2">
         <h2 className="font-semibold">Grupos compartidos</h2>
         {groups.map((g) => <GroupCard key={g.id} group={g} month={month} />)}
-        <form className="flex flex-wrap items-center gap-2 [&>input]:flex-1" onSubmit={guard(async () => { await createGroup.mutateAsync({ name: newGroup.name, myPercent: parseNum(newGroup.percent) }); setNewGroup({ ...newGroup, name: "" }); })}>
+        <form className="flex flex-wrap items-center gap-2 [&>input]:flex-1" onSubmit={guard(async () => { await createGroup.mutateAsync({ name: newGroup.name, myPercent: parseNum(newGroup.percent), personId: newGroup.personId || null }); setNewGroup({ ...newGroup, name: "" }); })}>
           <input className={field} placeholder={groups.length ? "Otro grupo" : "Nuevo grupo (ej. Hogar)"} value={newGroup.name} onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })} required />
+          <select className={field} value={newGroup.personId} onChange={(e) => setNewGroup({ ...newGroup, personId: e.target.value })} aria-label="Se comparte con">
+            <option value="">Se comparte con: nadie</option>
+            {persons.map((p) => <option key={p.id} value={p.id}>Se comparte con: {p.name}</option>)}
+          </select>
           <label className="text-xs text-slate-500">% base <NumberInput className={`${field} w-16`} value={newGroup.percent} onChange={(v) => setNewGroup({ ...newGroup, percent: v })} /></label>
           <button className="rounded bg-white px-3 py-1.5 text-sm shadow">Crear grupo</button>
         </form>

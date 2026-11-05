@@ -11,7 +11,7 @@ Monorepo pnpm: `apps/api` (Fastify + Prisma + Postgres), `apps/web` (React + Vit
 | **Tarjetas** | Compras en cuotas (y en USD, en un solo pago) con reparto a terceros, resumen mensual (7‰, ajuste, reintegros), cierre y vencimiento editables mes a mes, pago del resumen, compromisos de los próximos 12 meses. |
 | **Compartidos** | Gastos comunes con tu pareja cargados en el Google Form: se importan del CSV de respuestas (subiendo el archivo o con el link publicado), cuentan **tu parte** según el % del mes del grupo *Hogar* y calculan el saldo. Tus pagos salen de una cuenta o de una tarjeta; lo que te devuelve entra como *Reintegros*. |
 | **Personas** | Cuánto te debe cada una, detalle por mes, cargos manuales en cuotas y pagos (entran como ingreso en la categoría *Reintegros*). |
-| **Recurrentes** | Alquiler, servicios, suscripciones; frecuencia mensual/bimestral/anual, cambios de precio con vigencia, grupos compartidos (*Hogar*) con **% editable mes a mes**. |
+| **Recurrentes** | Alquiler, servicios, suscripciones; frecuencia mensual/bimestral/anual, cambios de precio con vigencia, grupos compartidos (*Hogar*) con **% editable mes a mes** y una persona asignada: lo recurrente del grupo lo pagás entero y la persona te debe lo que no es tu %. |
 | **Presupuestos** | Por categoría y mes, con alerta al 80 % y al 100 %; copiar del mes anterior con aumento. |
 | **Sueldos** | Varios trabajos, cada uno con su recibo mensual (bruto y neto) + SAC; los trabajos en negro llevan solo el neto. El neto se carga solo como ingreso. |
 | **Inversiones** | Depósitos y retiros, saldo real anotado, ganancia = real − teórico. |
