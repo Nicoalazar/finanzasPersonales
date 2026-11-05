@@ -106,6 +106,17 @@ describe("protecciones", () => {
     expect(byDesc(await month("2026-03"), "Patente").amount).toBe(25000);
   });
 
+  it("cambiar la cuenta mueve los pendientes (aun editados) y no los pagados", async () => {
+    const other = (await call("POST", "/api/accounts", { name: "Billetera" })).json().id;
+    expect((await call("PATCH", `/api/recurring/${patente}`, { accountId: other })).statusCode).toBe(200);
+    expect((await call("PATCH", `/api/recurring/${alquiler}`, { accountId: other })).statusCode).toBe(200);
+    const items = await month("2026-03");
+    expect(byDesc(items, "Patente")).toMatchObject({ accountId: other, amount: 25000 });
+    expect(byDesc(items, "Alquiler")).toMatchObject({ accountId: bank, status: "PAID" });
+    expect((await call("GET", "/api/recurring")).json().find((r: any) => r.id === patente).accountId).toBe(other);
+    expect((await call("PATCH", `/api/recurring/${patente}`, { accountId: "nope" })).statusCode).toBe(400);
+  });
+
   it("borrar un pendiente saltea ese mes", async () => {
     const t = byDesc(await month("2026-03"), "YouTube");
     expect((await call("DELETE", `/api/transactions/${t.id}`)).statusCode).toBe(204);

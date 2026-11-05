@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { dateInMonth, type AccountDto, type JobDto, type PayslipDto } from "@finanzas/shared";
+import { StatRow, iconBtn, iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import {
   useAccounts, useCreateJob, useCreatePayslip, useDeleteJob, useDeletePayslip, useJobs, usePatchJob, usePatchPayslip, usePayslips, useSacSuggestion,
@@ -72,14 +73,18 @@ function Jobs({ jobs, accounts }: { jobs: JobDto[]; accounts: AccountDto[] }) {
       <div className="divide-y rounded-xl bg-white shadow">
         {jobs.length === 0 && <p className="px-4 pt-3 text-sm text-slate-500">Cargá primero los trabajos de los que cobrás sueldo.</p>}
         {jobs.map((j) => editing === j.id ? <JobForm key={j.id} job={j} accounts={accounts} onDone={() => setEditing(null)} /> : (
-          <div key={j.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm ${j.archived ? "opacity-50" : ""}`}>
-            <span className="font-medium">{j.name}</span>
-            {j.informal && <InformalBadge />}
-            {j.archived && <span className="text-xs text-slate-500">archivado</span>}
-            <span className="flex-1 text-xs text-slate-500">{accountName(j.accountId) ? `Se cobra en ${accountName(j.accountId)}` : ""} · {j.payslipCount} {j.payslipCount === 1 ? "recibo" : "recibos"}</span>
-            <button className="text-slate-400 hover:text-slate-900" aria-label="Editar" onClick={() => setEditing(j.id)}>✎</button>
+          <div key={j.id} className={`flex items-center gap-1 py-2 pl-4 pr-2 text-sm ${j.archived ? "opacity-50" : ""}`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2">
+                <span className="font-medium">{j.name}</span>
+                {j.informal && <InformalBadge />}
+                {j.archived && <span className="text-xs text-slate-500">archivado</span>}
+              </div>
+              <div className="text-xs text-slate-500">{accountName(j.accountId) ? `Se cobra en ${accountName(j.accountId)} · ` : ""}{j.payslipCount} {j.payslipCount === 1 ? "recibo" : "recibos"}</div>
+            </div>
+            <button className={iconBtn} aria-label="Editar" onClick={() => setEditing(j.id)}>✎</button>
             {j.payslipCount > 0 ? (
-              <button className="text-xs text-slate-500 hover:text-slate-900" onClick={() => patch.mutate({ id: j.id, patch: { archived: !j.archived } })}>
+              <button className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-900" onClick={() => patch.mutate({ id: j.id, patch: { archived: !j.archived } })}>
                 {j.archived ? "Reactivar" : "Archivar"}
               </button>
             ) : (
@@ -185,7 +190,7 @@ function Row({ p, job, prevNet }: { p: PayslipDto; job: JobDto | undefined; prev
   };
 
   const title = (
-    <span className="w-44">
+    <span className="min-w-0 truncate sm:w-44">
       {job?.name ?? "—"}
       {p.kind === "SAC" && <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] text-violet-700">SAC</span>}
     </span>
@@ -204,17 +209,23 @@ function Row({ p, job, prevNet }: { p: PayslipDto; job: JobDto | undefined; prev
     );
   }
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-sm">
-      {title}
-      <span className="flex-1 text-slate-500">{informal ? <InformalBadge /> : `Bruto ${formatMoney(p.gross!)}`}</span>
-      <span className="font-medium">Neto {formatMoney(p.net)}</span>
-      <span className="w-14 text-right text-xs text-slate-500" title="Neto sobre bruto">{p.gross ? `${Math.round((p.net / p.gross) * 100)}%` : ""}</span>
-      <span className={`w-16 text-right text-xs ${change == null ? "" : change >= 0 ? "text-emerald-600" : "text-rose-600"}`} title="Variación del neto contra el recibo anterior de este trabajo">
-        {change == null ? "" : `${pctFmt.format(change)}%`}
-      </span>
-      {p.status === "PENDING" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">Sin cobrar</span>}
-      <button className="text-slate-400 hover:text-slate-900" aria-label="Editar" onClick={() => setEditing(true)}>✎</button>
-      <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar" title="También elimina el ingreso"
+    <div className="flex items-center gap-1 py-2 pl-4 pr-2 text-sm">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-3">
+          {title}
+          <span className="shrink-0 font-medium tabular-nums">Neto {formatMoney(p.net)}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+          <span>{informal ? <InformalBadge /> : `Bruto ${formatMoney(p.gross!)}`}</span>
+          {p.gross && <span title="Neto sobre bruto">{Math.round((p.net / p.gross) * 100)}% del bruto</span>}
+          {change != null && (
+            <span className={change >= 0 ? "text-emerald-600" : "text-rose-600"} title="Variación del neto contra el recibo anterior de este trabajo">{pctFmt.format(change)}% vs. anterior</span>
+          )}
+          {p.status === "PENDING" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">Sin cobrar</span>}
+        </div>
+      </div>
+      <button className={iconBtn} aria-label="Editar" onClick={() => setEditing(true)}>✎</button>
+      <button className={iconBtnDanger} aria-label="Eliminar" title="También elimina el ingreso"
         onClick={() => confirm("¿Eliminar este recibo? También se elimina el ingreso asociado.") && del.mutate(p.id)}>✕</button>
     </div>
   );
@@ -255,20 +266,19 @@ export function Salary() {
       {adding && <NewPayslip jobs={activeJobs} accounts={accounts} onDone={() => setAdding(false)} />}
 
       {jobs.length > 1 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="no-scrollbar -mx-3 flex gap-1 overflow-x-auto px-3 py-1 sm:mx-0 sm:flex-wrap sm:px-0">
           {[{ id: "", name: "Todos" }, ...jobs].map((j) => (
-            <button key={j.id} onClick={() => setJobFilter(j.id)} className={`rounded px-3 py-1 text-sm ${jobFilter === j.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{j.name}</button>
+            <button key={j.id} onClick={() => setJobFilter(j.id)} className={`shrink-0 rounded px-3 py-1 text-sm ${jobFilter === j.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{j.name}</button>
           ))}
         </div>
       )}
 
       {last && (
-        <section className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Último neto{jobFilter ? "" : " total"} · {monthLabel(last)}</div><div className="font-semibold">{formatMoney(lastNet)}</div></div>
-          <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Vs. mes anterior</div>
-            <div className={`font-semibold ${lastChange == null ? "" : lastChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{lastChange == null ? "—" : `${pctFmt.format(lastChange)}%`}</div></div>
-          <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Neto promedio ({recent.length} {recent.length === 1 ? "mes" : "meses"})</div><div className="font-semibold">{formatMoney(avg)}</div></div>
-        </section>
+        <StatRow items={[
+          { label: `Último neto${jobFilter ? "" : " total"} · ${monthLabel(last)}`, value: formatMoney(lastNet) },
+          { label: "Vs. mes anterior", value: lastChange == null ? "—" : `${pctFmt.format(lastChange)}%`, cls: lastChange == null ? "" : lastChange >= 0 ? "text-emerald-600" : "text-rose-600" },
+          { label: `Neto promedio (${recent.length} ${recent.length === 1 ? "mes" : "meses"})`, value: formatMoney(avg) },
+        ]} />
       )}
 
       {all.length === 0 && activeJobs.length > 0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow">Todavía no cargaste recibos. Con el bruto y el neto de cada mes alcanza (en los trabajos en negro, solo el neto): el neto se carga solo como ingreso.</p>}

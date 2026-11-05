@@ -1,30 +1,39 @@
-import { addMonths, fromCents, installmentMonths, occursIn, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
+import { addMonths, defaultDueDate, fromCents, installmentMonths, occursIn, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
-import { currentMonth, num } from "../../lib.js";
+import { currentMonth, fromDbDate, num } from "../../lib.js";
 import { loadRecurring, myCents } from "../recurring/service.js";
 import { installmentShareCents } from "../cards/statement.js";
 
 export interface Accrual { personId: string; month: string; cents: number; line: PersonLineDto }
 
-/** Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas. */
+/**
+ * Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas.
+ * Las cuotas de tarjeta se imputan al mes en que VENCE el resumen (la tarjeta se paga a mes vencido):
+ * el resumen de octubre que vence en noviembre cuenta en noviembre.
+ */
 export async function accruals(personId?: string): Promise<Accrual[]> {
-  const [installments, charges, recurring] = await Promise.all([
+  const [installments, charges, recurring, customDue] = await Promise.all([
     prisma.cardInstallment.findMany({
       where: { purchase: { shares: { some: personId ? { personId } : {} } } },
       include: { purchase: { include: { shares: true, card: true } } },
     }),
     prisma.personCharge.findMany({ where: personId ? { personId } : {} }),
     loadRecurring({ shares: { some: personId ? { personId } : {} } }),
+    prisma.cardStatement.findMany({ where: { dueDate: { not: null } }, select: { cardId: true, month: true, dueDate: true } }),
   ]);
+  const dueOverride = new Map(customDue.map((s) => [`${s.cardId}|${s.month}`, fromDbDate(s.dueDate!).slice(0, 7)]));
+  const dueMonth = (card: { id: string; closingDay: number; dueDay: number }, statementMonth: string) =>
+    dueOverride.get(`${card.id}|${statementMonth}`) ?? defaultDueDate(statementMonth, card.closingDay, card.dueDay).slice(0, 7);
 
   const out: Accrual[] = [];
   for (const i of installments) {
     const amountCents = toCents(num(i.amount));
+    const month = dueMonth(i.purchase.card, i.month);
     for (const s of i.purchase.shares) {
       if (personId && s.personId !== personId) continue;
       const cents = installmentShareCents(amountCents, { mode: s.mode, value: num(s.value) });
       out.push({
-        personId: s.personId, month: i.month, cents,
+        personId: s.personId, month, cents,
         line: { kind: "CARD", refId: i.purchaseId, description: i.purchase.description, source: i.purchase.card.name, number: i.number, count: i.purchase.installmentCount, amount: fromCents(cents) },
       });
     }
