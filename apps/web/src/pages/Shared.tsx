@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { SharedConfigDto, SharedEntryDto, SharedImportResultDto } from "@finanzas/shared";
-import { currentMonth, formatDay, formatMoney, monthLabel, shiftMonth, today } from "../lib/format";
+import { MonthNav } from "../components/MonthNav";
+import { iconBtnDanger } from "../components/Stats";
+import { currentMonth, formatDay, formatMoney, today } from "../lib/format";
 import {
   useAccounts, useCards, useCategories, useClearGroupPercent, useCreateSharedEntry, useDeleteSettlement, useDeleteSharedEntry, useImportShared,
   usePatchSharedConfig, usePatchSharedEntry, useSetGroupPercent, useSetSharedKind, useSettleShared, useSharedConfig, useSharedGroups, useSharedMonth,
@@ -160,6 +162,14 @@ export function Shared() {
     return guard(() => patchEntry.mutateAsync({ id: e.id, patch }));
   };
 
+  const kindSelect = (kind: string, categoryId: string | null, cls: string) => (
+    <select className={`${field} ${cls}`} value={categoryId ?? ""} aria-label={`Categoría de ${kind}`}
+      onChange={(e) => guard(() => setKind.mutateAsync({ kind, categoryId: e.target.value || null }))}>
+      <option value="">Sin categoría</option>
+      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    </select>
+  );
+
   if (!config || !m) return <p className="text-sm text-slate-500">Cargando…</p>;
   const partner = config.partnerName;
   const owesMe = m.pending > 0;
@@ -167,25 +177,18 @@ export function Shared() {
 
   return (
     <main className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
-          <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
-          <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
-        </div>
-        <div className="flex items-center gap-2">
-          {config.sourceUrl && (
-            <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => runImport()} disabled={imp.isPending}>
-              {imp.isPending ? "Sincronizando…" : "Sincronizar"}
-            </button>
-          )}
-          <label className="cursor-pointer rounded bg-white px-3 py-1.5 text-sm shadow">
-            Subir CSV
-            <input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-          </label>
-          {!adding && <button className="rounded bg-white px-3 py-1.5 text-sm shadow" onClick={() => setAdding(true)}>+ Gasto</button>}
-        </div>
-      </div>
+      <MonthNav month={month} onChange={setMonth}>
+        {config.sourceUrl && (
+          <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => runImport()} disabled={imp.isPending}>
+            {imp.isPending ? "Sincronizando…" : "Sincronizar"}
+          </button>
+        )}
+        <label className="cursor-pointer rounded bg-white px-3 py-1.5 shadow">
+          Subir CSV
+          <input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+        </label>
+        {!adding && <button className="rounded bg-white px-3 py-1.5 shadow" onClick={() => setAdding(true)}>+ Gasto</button>}
+      </MonthNav>
       {config.lastSyncAt && <p className="-mt-2 text-xs text-slate-500">Última importación: {new Date(config.lastSyncAt).toLocaleString("es-AR")}</p>}
 
       {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
@@ -238,24 +241,24 @@ export function Shared() {
       {(m.pending !== 0 || m.settlements.length > 0) && (
         <section className="space-y-2 rounded-xl bg-white p-4 text-sm shadow">
           {m.pending !== 0 && (
-            <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => {
+            <form className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap" onSubmit={(e) => {
               e.preventDefault();
               guard(() => settle.mutateAsync({ month, date: settleForm.date, accountId: settleForm.accountId || config.defaultAccountId || accounts[0]!.id, amount: (owesMe ? 1 : -1) * parseNum(settleForm.amount) }));
             }}>
               <span>{owesMe ? `${partner} me pagó` : `Le pagué a ${partner}`}</span>
-              <input className={`${field} w-28 text-right`} inputMode="decimal" value={settleForm.amount} onChange={(e) => setSettleForm({ ...settleForm, amount: e.target.value })} aria-label="Monto del saldo" required />
+              <input className={`${field} text-right sm:w-28`} inputMode="decimal" value={settleForm.amount} onChange={(e) => setSettleForm({ ...settleForm, amount: e.target.value })} aria-label="Monto del saldo" required />
               <input type="date" className={field} value={settleForm.date} onChange={(e) => setSettleForm({ ...settleForm, date: e.target.value })} aria-label="Fecha del pago" required />
               <select className={field} value={settleForm.accountId || config.defaultAccountId || ""} onChange={(e) => setSettleForm({ ...settleForm, accountId: e.target.value })} aria-label="Cuenta">
                 {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <button className="rounded bg-slate-900 px-3 py-1.5 text-white" disabled={settle.isPending || accounts.length === 0}>Registrar</button>
+              <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-white" disabled={settle.isPending || accounts.length === 0}>Registrar</button>
             </form>
           )}
           {m.settlements.map((s) => (
             <div key={s.transactionId} className="flex items-center gap-2 text-xs text-slate-600">
               <span>{formatDay(s.date)}</span>
               <span className="flex-1">{s.amount > 0 ? `${partner} me pagó` : `Le pagué a ${partner}`} {formatMoney(Math.abs(s.amount))} · {accountName(s.accountId)}</span>
-              <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar pago" onClick={() => confirm("¿Eliminar este pago?") && guard(() => delSettlement.mutateAsync(s.transactionId))}>✕</button>
+              <button className={iconBtnDanger} aria-label="Eliminar pago" onClick={() => confirm("¿Eliminar este pago?") && guard(() => delSettlement.mutateAsync(s.transactionId))}>✕</button>
             </div>
           ))}
           {m.pending > 0 && <p className="text-xs text-slate-500">Lo que te paga {partner} entra como reintegro y se descuenta de tu gasto.</p>}
@@ -263,29 +266,40 @@ export function Shared() {
       )}
 
       {m.byKind.length > 0 && (
-        <section className="overflow-x-auto rounded-xl bg-white shadow">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr><th className="px-4 py-2 font-normal">Tipo</th><th className="px-2 py-2 text-right font-normal">Total</th><th className="px-2 py-2 text-right font-normal">% del mes</th><th className="px-2 py-2 text-right font-normal">Mi parte</th><th className="px-4 py-2 font-normal">Va a mi categoría</th></tr>
-            </thead>
-            <tbody className="divide-y">
-              {m.byKind.map((k) => (
-                <tr key={k.kind}>
-                  <td className="px-4 py-2">{k.kind}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.total)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-slate-500">{k.pct.toLocaleString("es-AR")}%</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.myShare)}</td>
-                  <td className="px-4 py-1.5">
-                    <select className={`${field} w-full min-w-36`} value={k.categoryId ?? ""} aria-label={`Categoría de ${k.kind}`}
-                      onChange={(e) => guard(() => setKind.mutateAsync({ kind: k.kind, categoryId: e.target.value || null }))}>
-                      <option value="">Sin categoría</option>
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <section className="rounded-xl bg-white shadow">
+          {/* celular: una tarjeta por tipo */}
+          <div className="divide-y sm:hidden">
+            {m.byKind.map((k) => (
+              <div key={k.kind} className="space-y-1.5 px-4 py-2.5 text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium">{k.kind}</span>
+                  <span className="tabular-nums">{formatMoney(k.total)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>{k.pct.toLocaleString("es-AR")}% del mes</span><span>Mi parte <b className="font-medium text-slate-700">{formatMoney(k.myShare)}</b></span>
+                </div>
+                {kindSelect(k.kind, k.categoryId, "w-full")}
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-slate-500">
+                <tr><th className="px-4 py-2 font-normal">Tipo</th><th className="px-2 py-2 text-right font-normal">Total</th><th className="px-2 py-2 text-right font-normal">% del mes</th><th className="px-2 py-2 text-right font-normal">Mi parte</th><th className="px-4 py-2 font-normal">Va a mi categoría</th></tr>
+              </thead>
+              <tbody className="divide-y">
+                {m.byKind.map((k) => (
+                  <tr key={k.kind}>
+                    <td className="px-4 py-2">{k.kind}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.total)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-500">{k.pct.toLocaleString("es-AR")}%</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.myShare)}</td>
+                    <td className="px-4 py-1.5">{kindSelect(k.kind, k.categoryId, "w-full min-w-36")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
@@ -294,34 +308,38 @@ export function Shared() {
           <p className="p-4 text-sm text-slate-500">No hay gastos compartidos este mes. {config.sourceUrl ? "Sincronizá" : "Subí el CSV de respuestas"} para traerlos.</p>
         )}
         {m.entries.map((e) => (
-          <div key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
-            <span className="w-11 text-xs text-slate-500">{formatDay(e.date)}</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${e.payer === "ME" ? "bg-sky-100 text-sky-800" : "bg-violet-100 text-violet-800"}`}>
-              {e.payer === "ME" ? config.meName : partner}
-            </span>
+          <div key={e.id} className="flex items-start gap-3 py-2 pl-4 pr-2">
+            <span className="w-10 shrink-0 pt-0.5 text-xs text-slate-500">{formatDay(e.date)}</span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{e.description || e.kind}</div>
-              <div className="text-xs text-slate-500">{e.kind}{e.source === "MANUAL" && " · cargado acá"}</div>
-            </div>
-            {e.payer === "ME" && (
-              <span className="flex items-center gap-1">
-                <select className={`${field} max-w-40 py-1 text-xs`} value={methodOf(e)} aria-label="Cómo lo pagué" onChange={(ev) => changeMethod(e, ev.target.value)}>
-                  <option value="">{config.defaultAccountId ? `${accountName(config.defaultAccountId)} (por defecto)` : "Sin cuenta"}</option>
-                  {accounts.filter((a) => a.id !== config.defaultAccountId).map((a) => <option key={a.id} value={`acc:${a.id}`}>{a.name}</option>)}
-                  {cards.map((c) => <option key={c.id} value={`card:${c.id}`}>Tarjeta {c.name}</option>)}
-                </select>
-                {e.cardId && (
-                  <select className={`${field} py-1 text-xs`} value={e.installmentCount} aria-label="Cuotas"
-                    onChange={(ev) => guard(() => patchEntry.mutateAsync({ id: e.id, patch: { installmentCount: Number(ev.target.value) } }))}>
-                    {[1, 2, 3, 4, 6, 9, 12, 18, 24].map((n) => <option key={n} value={n}>{n === 1 ? "1 pago" : `${n} cuotas`}</option>)}
+              <div className="flex items-baseline justify-between gap-2 pr-2">
+                <span className="truncate text-sm">{e.description || e.kind}</span>
+                <span className="shrink-0 text-sm font-medium tabular-nums">{formatMoney(e.amount)}</span>
+              </div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                <span className={`rounded-full px-2 py-0.5 ${e.payer === "ME" ? "bg-sky-100 text-sky-800" : "bg-violet-100 text-violet-800"}`}>
+                  {e.payer === "ME" ? config.meName : partner}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{e.kind}{e.source === "MANUAL" && " · cargado acá"}</span>
+                <button className={`${iconBtnDanger} -my-1`} aria-label="Eliminar gasto"
+                  title={e.source === "FORM" ? "Lo ignora: no vuelve a importarse" : "Eliminar"}
+                  onClick={() => confirm(e.source === "FORM" ? "¿Ignorar este gasto? No se vuelve a importar aunque siga en la planilla." : "¿Eliminar este gasto?") && guard(() => delEntry.mutateAsync(e.id))}>✕</button>
+              </div>
+              {e.payer === "ME" && (
+                <div className="mt-1 flex gap-2 pr-2 [&>select]:flex-1 sm:[&>select]:flex-none">
+                  <select className={`${field} py-0.5 text-xs sm:max-w-48`} value={methodOf(e)} aria-label="Cómo lo pagué" onChange={(ev) => changeMethod(e, ev.target.value)}>
+                    <option value="">{config.defaultAccountId ? `${accountName(config.defaultAccountId)} (por defecto)` : "Sin cuenta"}</option>
+                    {accounts.filter((a) => a.id !== config.defaultAccountId).map((a) => <option key={a.id} value={`acc:${a.id}`}>{a.name}</option>)}
+                    {cards.map((c) => <option key={c.id} value={`card:${c.id}`}>Tarjeta {c.name}</option>)}
                   </select>
-                )}
-              </span>
-            )}
-            <span className="text-sm font-medium tabular-nums">{formatMoney(e.amount)}</span>
-            <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar gasto"
-              title={e.source === "FORM" ? "Lo ignora: no vuelve a importarse" : "Eliminar"}
-              onClick={() => confirm(e.source === "FORM" ? "¿Ignorar este gasto? No se vuelve a importar aunque siga en la planilla." : "¿Eliminar este gasto?") && guard(() => delEntry.mutateAsync(e.id))}>✕</button>
+                  {e.cardId && (
+                    <select className={`${field} py-0.5 text-xs`} value={e.installmentCount} aria-label="Cuotas"
+                      onChange={(ev) => guard(() => patchEntry.mutateAsync({ id: e.id, patch: { installmentCount: Number(ev.target.value) } }))}>
+                      {[1, 2, 3, 4, 6, 9, 12, 18, 24].map((n) => <option key={n} value={n}>{n === 1 ? "1 pago" : `${n} cuotas`}</option>)}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </section>

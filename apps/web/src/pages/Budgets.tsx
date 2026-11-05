@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { BudgetRowDto } from "@finanzas/shared";
+import { MonthNav } from "../components/MonthNav";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import { useBudgets, useCopyBudgets, useDeleteBudget, useSetBudget } from "../lib/queries";
 
@@ -46,7 +47,7 @@ function Row({ row, month, onError }: { row: BudgetRowDto; month: string; onErro
         )}
       </div>
       {row.budget != null && <Progress pct={row.pct} status={row.status} />}
-      <div className="flex justify-between text-xs text-slate-500">
+      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-slate-500">
         <span>Gastado {formatMoney(row.spent)}{row.pct != null && ` · ${row.pct.toLocaleString("es-AR")}%`}</span>
         {row.remaining != null && (
           <span className={row.remaining < 0 ? "text-rose-600" : ""}>{row.remaining < 0 ? `Te pasaste ${formatMoney(-row.remaining)}` : `Quedan ${formatMoney(row.remaining)}`}</span>
@@ -82,11 +83,7 @@ export function Budgets() {
 
   return (
     <main className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
-        <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
-        <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
-      </div>
+      <MonthNav month={month} onChange={setMonth} />
 
       {t && t.budget > 0 && (
         <section className="space-y-2 rounded-xl bg-white p-4 shadow">
