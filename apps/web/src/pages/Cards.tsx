@@ -7,6 +7,7 @@ import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format
 import {
   useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -103,15 +104,15 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
         <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰</span><span>{formatMoney(st.stampTax)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
-          <input id="adj" className={`${field} w-28 shrink-0 text-right sm:w-32`} inputMode="decimal" value={adjustment} disabled={!!st.paidAt}
-            onChange={(e) => setAdjustment(e.target.value)} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
+          <NumberInput id="adj" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={adjustment} disabled={!!st.paidAt}
+            onChange={setAdjustment} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
         </div>
         <div className={`${row} font-semibold`}><span>Total del resumen</span><span>{formatMoney(st.total)}</span></div>
         <div className={row}><span>Corresponde a terceros</span><span>− {formatMoney(st.thirdParty)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="ref">Reintegros</label>
-          <input id="ref" className={`${field} w-28 shrink-0 text-right sm:w-32`} inputMode="decimal" value={refunds} disabled={!!st.paidAt}
-            onChange={(e) => setRefunds(e.target.value)} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
+          <NumberInput id="ref" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={refunds} disabled={!!st.paidAt}
+            onChange={setRefunds} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
         </div>
         <div className={`${row} font-semibold text-rose-600`}><span>Neto propio</span><span>{formatMoney(st.netOwn)}</span></div>
       </div>

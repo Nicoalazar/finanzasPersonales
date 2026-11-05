@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { formatMoney } from "../lib/format";
 import { useAccounts, useCategories, useCreateAccount, useCreateCategory, useDeleteCategory } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 
@@ -36,7 +37,7 @@ export function Settings() {
           <select className={`${field} flex-1 sm:flex-none`} value={acc.kind} onChange={(e) => setAcc({ ...acc, kind: e.target.value })}>
             <option value="BANK">Banco</option><option value="WALLET">Billetera</option><option value="CASH">Efectivo</option><option value="INVESTMENT">Inversión</option>
           </select>
-          <input className={`${field} w-28 flex-1 sm:flex-none`} inputMode="decimal" placeholder="Saldo inicial" aria-label="Saldo inicial" value={acc.initialBalance} onChange={(e) => setAcc({ ...acc, initialBalance: e.target.value })} />
+          <NumberInput className={`${field} w-28 flex-1 sm:flex-none`} placeholder="Saldo inicial" aria-label="Saldo inicial" value={acc.initialBalance} onChange={(v) => setAcc({ ...acc, initialBalance: v })} />
           <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Agregar</button>
         </form>
       </section>

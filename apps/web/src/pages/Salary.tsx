@@ -5,6 +5,7 @@ import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format
 import {
   useAccounts, useCreateJob, useCreatePayslip, useDeleteJob, useDeletePayslip, useJobs, usePatchJob, usePatchPayslip, usePayslips, useSacSuggestion,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -141,8 +142,8 @@ function NewPayslip({ jobs, accounts, onDone }: { jobs: JobDto[]; accounts: Acco
         </select>
       </label>
       <label className="text-xs text-slate-500">Mes del recibo <input className={`${field} w-full`} type="month" value={month} onChange={(e) => { setMonth(e.target.value); setDate(undefined); }} required /></label>
-      {!informal && <label className="text-xs text-slate-500">Bruto <input className={`${field} w-full`} inputMode="decimal" value={gross} onChange={(e) => setGross(e.target.value)} required /></label>}
-      <label className="text-xs text-slate-500">Neto (lo que cobrás) <input className={`${field} w-full`} inputMode="decimal" value={net} onChange={(e) => setNet(e.target.value)} required /></label>
+      {!informal && <label className="text-xs text-slate-500">Bruto <NumberInput className={`${field} w-full`} value={gross} onChange={setGross} required /></label>}
+      <label className="text-xs text-slate-500">Neto (lo que cobrás) <NumberInput className={`${field} w-full`} value={net} onChange={setNet} required /></label>
       <label className="text-xs text-slate-500">Cuenta
         <select className={`${field} w-full`} value={account} onChange={(e) => setAccountId(e.target.value)}>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -199,8 +200,8 @@ function Row({ p, job, prevNet }: { p: PayslipDto; job: JobDto | undefined; prev
     return (
       <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
         {title}
-        {!informal && <input className={`${field} w-32`} inputMode="decimal" value={f.gross} onChange={(e) => setF({ ...f, gross: e.target.value })} aria-label="Bruto" />}
-        <input className={`${field} w-32`} inputMode="decimal" value={f.net} onChange={(e) => setF({ ...f, net: e.target.value })} aria-label="Neto" />
+        {!informal && <NumberInput className={`${field} w-32`} value={f.gross} onChange={(v) => setF({ ...f, gross: v })} aria-label="Bruto" />}
+        <NumberInput className={`${field} w-32`} value={f.net} onChange={(v) => setF({ ...f, net: v })} aria-label="Neto" />
         <input className={field} type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Fecha de cobro" />
         <button className="rounded bg-slate-900 px-3 py-1 text-white" onClick={save}>Guardar</button>
         <button className="text-slate-500" onClick={() => setEditing(false)}>Cancelar</button>

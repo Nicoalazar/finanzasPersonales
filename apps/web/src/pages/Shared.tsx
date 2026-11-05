@@ -7,6 +7,7 @@ import {
   useAccounts, useCards, useCategories, useClearGroupPercent, useCreateSharedEntry, useDeleteSettlement, useDeleteSharedEntry, useImportShared,
   usePatchSharedConfig, usePatchSharedEntry, useSetGroupPercent, useSetSharedKind, useSettleShared, useSharedConfig, useSharedGroups, useSharedMonth,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
@@ -103,7 +104,7 @@ function AddEntry({ month, config, onDone, onError }: { month: string; config: S
         <option value="ME">Pagué yo ({config.meName})</option>
         <option value="PARTNER">Pagó {config.partnerName}</option>
       </select>
-      <input className={`${field} sm:col-span-2`} inputMode="decimal" placeholder="Monto" value={f.amount} onChange={set("amount")} required aria-label="Monto" />
+      <NumberInput className={`${field} sm:col-span-2`} placeholder="Monto" value={f.amount} onChange={(v) => set("amount")({ target: { value: v } })} required aria-label="Monto" />
       <input className={`${field} sm:col-span-2`} placeholder="Tipo (Mercadería…)" value={f.kind} onChange={set("kind")} required aria-label="Tipo" list="shared-kinds" />
       <input className={`${field} sm:col-span-3`} placeholder="Detalle" value={f.description} onChange={set("description")} aria-label="Detalle" />
       <div className="flex gap-2">
@@ -216,8 +217,8 @@ export function Shared() {
             <span className="text-lg font-semibold">{formatMoney(m.myShare)}</span>
             {m.groupId ? (
               <label className="flex items-center gap-1 text-sm">
-                <input className={`${field} w-16 text-right`} inputMode="decimal" value={pct} aria-label="Mi porcentaje del mes"
-                  onChange={(e) => setPct(e.target.value)} onBlur={savePercent} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />%
+                <NumberInput className={`${field} w-16 text-right`} value={pct} aria-label="Mi porcentaje del mes"
+                  onChange={setPct} onBlur={savePercent} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />%
               </label>
             ) : <span className="text-sm text-slate-500">50 %</span>}
           </div>
@@ -245,7 +246,7 @@ export function Shared() {
               guard(() => settle.mutateAsync({ month, date: settleForm.date, accountId: settleForm.accountId || config.defaultAccountId || accounts[0]!.id, amount: (owesMe ? 1 : -1) * parseNum(settleForm.amount) }));
             }}>
               <span>{owesMe ? `${partner} me pagó` : `Le pagué a ${partner}`}</span>
-              <input className={`${field} text-right sm:w-28`} inputMode="decimal" value={settleForm.amount} onChange={(e) => setSettleForm({ ...settleForm, amount: e.target.value })} aria-label="Monto del saldo" required />
+              <NumberInput className={`${field} text-right sm:w-28`} value={settleForm.amount} onChange={(v) => setSettleForm({ ...settleForm, amount: v })} aria-label="Monto del saldo" required />
               <input type="date" className={field} value={settleForm.date} onChange={(e) => setSettleForm({ ...settleForm, date: e.target.value })} aria-label="Fecha del pago" required />
               <select className={field} value={settleForm.accountId || config.defaultAccountId || ""} onChange={(e) => setSettleForm({ ...settleForm, accountId: e.target.value })} aria-label="Cuenta">
                 {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
