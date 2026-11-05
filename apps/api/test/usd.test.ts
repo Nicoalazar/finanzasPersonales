@@ -114,9 +114,12 @@ describe("resumen con consumos USD", () => {
   it("presupuestos y personas usan los pesos, no los dólares", async () => {
     const b = (await call("GET", "/api/budgets?month=2026-03")).json();
     expect(b.rows.find((r: any) => r.categoryId === viajes).spent).toBe(60000);
-    const [sum] = (await call("GET", "/api/persons/summary?asOf=2026-03")).json();
+    // Personas imputa al mes en que vence el resumen: el de marzo (cierre 25, vence el 5) cuenta en abril
+    expect((await call("GET", "/api/persons/summary?asOf=2026-03")).json()[0].accrued).toBe(0);
+    const [sum] = (await call("GET", "/api/persons/summary?asOf=2026-04")).json();
     expect(sum.accrued).toBe(120000);
-    const detail = (await call("GET", `/api/persons/${camila}?asOf=2026-03`)).json();
+    const detail = (await call("GET", `/api/persons/${camila}?asOf=2026-04`)).json();
+    expect(detail.months[0].month).toBe("2026-04");
     expect(detail.months[0].lines[0]).toMatchObject({ kind: "CARD", amount: 120000, estimated: true });
   });
 
@@ -143,9 +146,9 @@ describe("resumen con consumos USD", () => {
     expect(st.byPerson).toEqual([{ personId: camila, name: "Camila", amount: 125000 }]);
     // netOwn = total − terceros: incluye los 54.000 de percepción, que no están en ninguna categoría
     expect(st.netOwn).toBe(127882.5);
-    const [sum] = (await call("GET", "/api/persons/summary?asOf=2026-03")).json();
+    const [sum] = (await call("GET", "/api/persons/summary?asOf=2026-04")).json();
     expect(sum.accrued).toBe(125000);
-    const detail = (await call("GET", `/api/persons/${camila}?asOf=2026-03`)).json();
+    const detail = (await call("GET", `/api/persons/${camila}?asOf=2026-04`)).json();
     expect(detail.months[0].lines[0].amount).toBe(125000);
     expect(detail.months[0].lines[0].estimated).toBeUndefined();
   });

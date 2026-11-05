@@ -3,6 +3,7 @@ import { splitInstallments } from "@finanzas/shared";
 import type { CardDto } from "@finanzas/shared";
 import { formatMoney, formatRate, formatUsd, monthLabel, today } from "../lib/format";
 import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, useFxUsd, usePersons } from "../lib/queries";
+import { NumberInput } from "./NumberInput";
 
 const box = "rounded border bg-white px-2 py-1.5 text-sm";
 const field = `w-full ${box}`;
@@ -92,13 +93,13 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
         <select className={`${box} w-20 shrink-0`} value={currency} onChange={(e) => pickCurrency(e.target.value as Currency)} aria-label="Moneda">
           <option value="ARS">ARS</option><option value="USD">USD</option>
         </select>
-        <input className={`${field} min-w-0`} inputMode="decimal" placeholder={isUsd ? "Monto en USD" : "Monto total"} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        <NumberInput className={`${field} min-w-0`} placeholder={isUsd ? "Monto en USD" : "Monto total"} value={amount} onChange={setAmount} required />
       </div>
       <input className={field} type="number" min={1} max={60} value={isUsd ? "1" : count} disabled={isUsd} title={isUsd ? "Las compras en USD son en un solo pago" : undefined}
         onChange={(e) => setCount(e.target.value)} aria-label="Cuotas" />
       {isUsd && (
-        <input className={field} inputMode="decimal" placeholder="Cotización" value={rate} aria-label="Cotización estimada"
-          onChange={(e) => { setRate(e.target.value); setRateTouched(true); }} required />
+        <NumberInput className={field} placeholder="Cotización" value={rate} aria-label="Cotización estimada"
+          onChange={(v) => { setRate(v); setRateTouched(true); }} required />
       )}
       {isUsd ? (
         <p className="col-span-2 self-center text-xs text-slate-500 sm:col-span-4">
@@ -128,7 +129,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
                 <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
                   <option value="PERCENT">% de la cuota</option><option value="AMOUNT">$ por cuota</option>
                 </select>
-                <input className={`${field} w-28`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+                <NumberInput className={`${field} w-28`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
               </>
             )}
             <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>

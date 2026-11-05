@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { InvestmentAccountDto } from "@finanzas/shared";
+import { StatRow, iconBtnDanger } from "../components/Stats";
 import { formatDay, formatMoney, today } from "../lib/format";
 import { useAccounts, useAddInvestmentMovement, useAddSnapshot, useDeleteSnapshot, useDeleteTransaction, useInvestments } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -51,10 +53,10 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
       <div className="grid gap-3 md:grid-cols-2">
         <form className="space-y-2 rounded-lg border p-3" onSubmit={guard(async () => { await addSnap.mutateAsync({ accountId: a.accountId, date: snap.date, balance: parseNum(snap.balance) }); setSnap({ ...snap, balance: "" }); })}>
           <div className="text-sm font-medium">Anotar saldo real</div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <input className={field} type="date" value={snap.date} onChange={(e) => setSnap({ ...snap, date: e.target.value })} required aria-label="Fecha del saldo" />
-            <input className={`${field} w-36`} inputMode="decimal" placeholder="Saldo real" value={snap.balance} onChange={(e) => setSnap({ ...snap, balance: e.target.value })} required />
-            <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
+            <NumberInput className={`${field} sm:w-36`} placeholder="Saldo real" value={snap.balance} onChange={(v) => setSnap({ ...snap, balance: v })} required />
+            <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
           </div>
           <p className="text-xs text-slate-500">Si ya anotaste esa fecha, se reemplaza.</p>
         </form>
@@ -71,13 +73,13 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
             ))}
           </div>
           {others.length === 0 ? <p className="text-xs text-amber-700">Necesitás otra cuenta (de donde sale o a donde va la plata).</p> : (
-            <div className="flex flex-wrap gap-2">
-              <select className={field} value={mov.otherAccountId || others[0]!.id} onChange={(e) => setMov({ ...mov, otherAccountId: e.target.value })} aria-label={mov.kind === "DEPOSIT" ? "Sale de" : "Va a"}>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <select className={`${field} col-span-2`} value={mov.otherAccountId || others[0]!.id} onChange={(e) => setMov({ ...mov, otherAccountId: e.target.value })} aria-label={mov.kind === "DEPOSIT" ? "Sale de" : "Va a"}>
                 {others.map((x) => <option key={x.id} value={x.id}>{mov.kind === "DEPOSIT" ? "Desde " : "Hacia "}{x.name}</option>)}
               </select>
               <input className={field} type="date" value={mov.date} onChange={(e) => setMov({ ...mov, date: e.target.value })} required aria-label="Fecha" />
-              <input className={`${field} w-32`} inputMode="decimal" placeholder="Monto" value={mov.amount} onChange={(e) => setMov({ ...mov, amount: e.target.value })} required />
-              <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
+              <NumberInput className={`${field} sm:w-32`} placeholder="Monto" value={mov.amount} onChange={(v) => setMov({ ...mov, amount: v })} required />
+              <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
             </div>
           )}
         </form>
@@ -109,11 +111,11 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
           <div className="mb-1 text-xs font-medium text-slate-500">Depósitos y retiros</div>
           <div className="divide-y rounded-lg border">
             {moves.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+              <div key={m.id} className="flex items-center gap-2 py-1 pl-3 pr-1 text-sm">
                 <span className="w-12 text-xs text-slate-500">{formatDay(m.date)}</span>
                 <span className="flex-1 truncate">{m.kind === "DEPOSIT" ? "Depósito desde" : "Retiro hacia"} {nameOf(m.otherAccountId)}</span>
                 <span className={m.kind === "DEPOSIT" ? "" : "text-rose-600"}>{m.kind === "DEPOSIT" ? "" : "−"}{formatMoney(m.amount)}</span>
-                <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar movimiento" onClick={() => confirm("¿Eliminar este movimiento? Se revierte en las dos cuentas.") && guard(() => delTx.mutateAsync(m.id))()}>✕</button>
+                <button className={iconBtnDanger} aria-label="Eliminar movimiento" onClick={() => confirm("¿Eliminar este movimiento? Se revierte en las dos cuentas.") && guard(() => delTx.mutateAsync(m.id))()}>✕</button>
               </div>
             ))}
           </div>
@@ -132,11 +134,11 @@ export function Investments() {
   const t = data.totals;
   return (
     <main className="space-y-4">
-      <section className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Depositado</div><div className="font-semibold">{formatMoney(t.theoretical)}</div></div>
-        <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Estimado hoy</div><div className="font-semibold">{formatMoney(t.currentEstimate)}</div></div>
-        <div className="rounded-xl bg-white p-3 shadow"><div className="text-xs text-slate-500">Ganancia</div><div className={`font-semibold ${tone(t.gain)}`}>{signed(t.gain)}</div></div>
-      </section>
+      <StatRow items={[
+        { label: "Depositado", value: formatMoney(t.theoretical) },
+        { label: "Estimado hoy", value: formatMoney(t.currentEstimate) },
+        { label: "Ganancia", value: signed(t.gain), cls: tone(t.gain) },
+      ]} />
       {data.accounts.map((a) => <AccountPanel key={a.accountId} a={a} />)}
     </main>
   );

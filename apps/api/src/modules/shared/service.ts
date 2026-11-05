@@ -6,7 +6,7 @@ import {
 import { prisma } from "../../plugins/db.js";
 import { currentMonth, fromDbDate, num, toDbDate } from "../../lib.js";
 import { resolveFirstMonth } from "../cards/statement.js";
-import { loadRecurring } from "../recurring/service.js";
+import { loadRecurring, myCents, priceOf } from "../recurring/service.js";
 
 /** Configuración única; la primera vez arranca en el mes actual y con el primer grupo compartido (Hogar). */
 export async function getLedger() {
@@ -130,7 +130,7 @@ export async function sharedCategoryCents(month: string): Promise<Map<string | n
 
 export async function buildSharedMonth(month: string): Promise<SharedMonthDto> {
   const ledger = await getLedger();
-  const [entries, kinds, settlements, { percent, percentIsOwn }, recurring] = await Promise.all([
+  const [entries, kinds, settlements, { percent, percentIsOwn }, groupRecurring] = await Promise.all([
     prisma.sharedExpense.findMany({ where: { month, ignored: false }, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
     prisma.sharedKind.findMany(),
     prisma.transaction.findMany({ where: { sharedMonth: month }, orderBy: { date: "asc" } }),
@@ -139,6 +139,29 @@ export async function buildSharedMonth(month: string): Promise<SharedMonthDto> {
   ]);
   const categoryOf = new Map(kinds.map((k) => [k.kind, k.categoryId]));
   const m = sharedMonthCents(entries.map((e) => ({ payer: e.payer, kind: e.kind, cents: toCents(num(e.amount)) })), percent);
+
+  // Recurrentes del grupo: cada parte paga lo suyo (mi parte sale de mis movimientos), así que suman al total y a las
+  // partes pero no al saldo. Los que borré del mes (salteados) no cuentan.
+  const active = groupRecurring.filter((r) => occursIn(r, month));
+  const skipped = active.length
+    ? new Set((await prisma.recurringSkip.findMany({ where: { period: month, recurringId: { in: active.map((r) => r.id) } } })).map((s) => s.recurringId))
+    : new Set<string>();
+  const recurring = active.filter((r) => !skipped.has(r.id)).map((r) => {
+    const totalCents = toCents(priceOf(r, month));
+    const myCentsOfIt = myCents(r, month);
+    return { r, totalCents, myCents: myCentsOfIt, partnerCents: totalCents - myCentsOfIt };
+  }).filter((x) => x.totalCents > 0);
+  for (const x of recurring) {
+    const k = m.byKind.get(x.r.name) ?? { totalCents: 0, myCents: 0 };
+    k.totalCents += x.totalCents;
+    k.myCents += x.myCents;
+    m.byKind.set(x.r.name, k);
+    if (!categoryOf.has(x.r.name)) categoryOf.set(x.r.name, x.r.categoryId);
+    m.totalCents += x.totalCents;
+    m.myShareCents += x.myCents;
+    m.paidByMe += x.myCents;
+    m.paidByPartner += x.partnerCents;
+  }
   const settledCents = settlements.reduce((a, t) => a + (t.type === "INCOME" ? 1 : -1) * toCents(num(t.amount)), 0);
   const pct = (c: number) => (m.totalCents > 0 ? Math.round((c / m.totalCents) * 1000) / 10 : 0);
   return {
@@ -151,6 +174,7 @@ export async function buildSharedMonth(month: string): Promise<SharedMonthDto> {
     })),
     entries: entries.map(entryDto),
     settlements: settlements.map((t) => ({ transactionId: t.id, date: fromDbDate(t.date), amount: (t.type === "INCOME" ? 1 : -1) * num(t.amount), accountId: t.accountId })),
-    overlappingRecurring: recurring.filter((r) => occursIn(r, month)).map((r) => r.name),
+    recurring: recurring.map((x) => ({ id: x.r.id, name: x.r.name, total: fromCents(x.totalCents), myShare: fromCents(x.myCents) })),
+    overlappingRecurring: active.map((r) => r.name),
   };
 }

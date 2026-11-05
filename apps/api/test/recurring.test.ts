@@ -106,6 +106,17 @@ describe("protecciones", () => {
     expect(byDesc(await month("2026-03"), "Patente").amount).toBe(25000);
   });
 
+  it("cambiar la cuenta mueve los pendientes (aun editados) y no los pagados", async () => {
+    const other = (await call("POST", "/api/accounts", { name: "Billetera" })).json().id;
+    expect((await call("PATCH", `/api/recurring/${patente}`, { accountId: other })).statusCode).toBe(200);
+    expect((await call("PATCH", `/api/recurring/${alquiler}`, { accountId: other })).statusCode).toBe(200);
+    const items = await month("2026-03");
+    expect(byDesc(items, "Patente")).toMatchObject({ accountId: other, amount: 25000 });
+    expect(byDesc(items, "Alquiler")).toMatchObject({ accountId: bank, status: "PAID" });
+    expect((await call("GET", "/api/recurring")).json().find((r: any) => r.id === patente).accountId).toBe(other);
+    expect((await call("PATCH", `/api/recurring/${patente}`, { accountId: "nope" })).statusCode).toBe(400);
+  });
+
   it("borrar un pendiente saltea ese mes", async () => {
     const t = byDesc(await month("2026-03"), "YouTube");
     expect((await call("DELETE", `/api/transactions/${t.id}`)).statusCode).toBe(204);
@@ -115,12 +126,11 @@ describe("protecciones", () => {
 });
 
 describe("terceros y baja", () => {
-  it("la parte de Guille en YouTube entra a su saldo (50% del monto mensual)", async () => {
-    // enero, febrero y marzo: 3 × 4000
+  it("los recurrentes no suman al saldo de las personas", async () => {
     const s = (await call("GET", "/api/persons/summary?asOf=2026-03")).json().find((p: any) => p.personId === guille);
-    expect(s).toMatchObject({ accrued: 12000, balance: 12000 });
+    expect(s).toMatchObject({ accrued: 0, balance: 0 });
     const d = (await call("GET", `/api/persons/${guille}?asOf=2026-03`)).json();
-    expect(d.months[0].lines[0]).toMatchObject({ kind: "RECURRING", description: "YouTube", amount: 4000 });
+    expect(d.months).toEqual([]);
   });
 
   it("eliminar un recurrente borra sus pendientes y conserva los pagados", async () => {

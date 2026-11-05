@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { RecurringDto, SharedGroupDto } from "@finanzas/shared";
+import { MonthNav } from "../components/MonthNav";
+import { iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import {
   useAccounts, useCategories, useClearGroupPercent, useCreateGroup, useCreateRecurring, useDeleteRecurring, usePatchRecurring,
   usePersons, useRecurring, useSetGroupPercent, useSetPrice, useSharedGroups,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -38,8 +41,8 @@ function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
       </div>
       <label className="flex items-center gap-2 text-sm">
         Mi parte en {monthLabel(month)}
-        <input className={`${field} w-20 text-right`} inputMode="decimal" value={value} aria-label={`Porcentaje de ${group.name}`}
-          onChange={(e) => setValue(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+        <NumberInput className={`${field} w-20 text-right`} value={value} aria-label={`Porcentaje de ${group.name}`}
+          onChange={setValue} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
         %
       </label>
       {group.percentIsOwn && (
@@ -74,9 +77,17 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
         <div className="min-w-32 flex-1">
           <div className="font-medium">{r.name}</div>
           <div className="text-xs text-slate-500">
-            {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`} · {accounts.find((a) => a.id === r.accountId)?.name ?? "sin cuenta"}
+            {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`}
             {r.shares.map((s) => ` · ${personName(s.personId)} ${s.value}${s.mode === "PERCENT" ? "%" : " $"}`).join("")}
           </div>
+          <label className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+            Cuenta
+            <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
+              onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ id: r.id, patch: { accountId: e.target.value } }))()}>
+              {!r.accountId && <option value="">Sin cuenta</option>}
+              {accounts.filter((a) => !a.archived || a.id === r.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? " (archivada)" : ""}</option>)}
+            </select>
+          </label>
         </div>
         <div className="text-right text-sm">
           {r.occursThisMonth ? (
@@ -89,16 +100,16 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
         <button className="rounded bg-slate-100 px-2 py-1 text-xs" onClick={() => { setEditing(!editing); setAmount(String(r.price)); setPct(""); }}>Cambiar precio</button>
         {!r.endMonth && <button className="rounded bg-slate-100 px-2 py-1 text-xs" title={`Termina en ${monthLabel(shiftMonth(month, -1))}`}
           onClick={() => confirm(`¿Finalizar "${r.name}"? Deja de generarse desde ${monthLabel(month)}.`) && guard(() => patch.mutateAsync({ id: r.id, patch: { endMonth: shiftMonth(month, -1) } }))()}>Finalizar</button>}
-        <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar"
+        <button className={iconBtnDanger} aria-label="Eliminar"
           onClick={() => confirm(`¿Eliminar "${r.name}"? Se borran sus pendientes; lo pagado se conserva.`) && guard(() => del.mutateAsync(r.id))()}>✕</button>
       </div>
       {editing && (
         <form className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3 text-sm"
           onSubmit={guard(async () => { await setPrice.mutateAsync({ id: r.id, fromMonth: month, amount: parseNum(amount) }); setEditing(false); })}>
           <span className="text-slate-500">Nuevo precio desde {monthLabel(month)}:</span>
-          <input className={`${field} w-32`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <NumberInput className={`${field} w-32`} value={amount} onChange={setAmount} required />
           <span className="text-slate-400">o aumento</span>
-          <input className={`${field} w-16`} inputMode="decimal" placeholder="10" value={pct} onChange={(e) => setPct(e.target.value)} onBlur={applyPct} />
+          <NumberInput className={`${field} w-16`} placeholder="10" value={pct} onChange={setPct} onBlur={applyPct} />
           <span className="text-slate-500">%</span>
           <button className="rounded bg-slate-900 px-3 py-1.5 text-white">Guardar</button>
         </form>
@@ -136,7 +147,7 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
         onDone();
       })}>
       <input className={`${field} col-span-2`} placeholder="Nombre (ej. Alquiler)" value={f.name} onChange={(e) => set({ name: e.target.value })} required />
-      <input className={field} inputMode="decimal" placeholder="Precio total" value={f.amount} onChange={(e) => set({ amount: e.target.value })} required />
+      <NumberInput className={field} placeholder="Precio total" value={f.amount} onChange={(v) => set({ amount: v })} required />
       <select className={field} value={f.frequency} onChange={(e) => set({ frequency: e.target.value })}>
         {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
       </select>
@@ -164,7 +175,7 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
             <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
               <option value="PERCENT">% del monto</option><option value="AMOUNT">$ por mes</option>
             </select>
-            <input className={`${field} w-24`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+            <NumberInput className={`${field} w-24`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
             <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}
@@ -192,22 +203,17 @@ export function Recurring() {
 
   return (
     <main className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
-          <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
-          <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
-        </div>
-        {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Recurrente</button>}
-      </div>
+      <MonthNav month={month} onChange={setMonth}>
+        {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Recurrente</button>}
+      </MonthNav>
       {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
 
       <section className="space-y-2">
         <h2 className="font-semibold">Grupos compartidos</h2>
         {groups.map((g) => <GroupCard key={g.id} group={g} month={month} />)}
-        <form className="flex flex-wrap items-center gap-2" onSubmit={guard(async () => { await createGroup.mutateAsync({ name: newGroup.name, myPercent: parseNum(newGroup.percent) }); setNewGroup({ ...newGroup, name: "" }); })}>
+        <form className="flex flex-wrap items-center gap-2 [&>input]:flex-1" onSubmit={guard(async () => { await createGroup.mutateAsync({ name: newGroup.name, myPercent: parseNum(newGroup.percent) }); setNewGroup({ ...newGroup, name: "" }); })}>
           <input className={field} placeholder={groups.length ? "Otro grupo" : "Nuevo grupo (ej. Hogar)"} value={newGroup.name} onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })} required />
-          <label className="text-xs text-slate-500">% base <input className={`${field} w-16`} inputMode="decimal" value={newGroup.percent} onChange={(e) => setNewGroup({ ...newGroup, percent: e.target.value })} /></label>
+          <label className="text-xs text-slate-500">% base <NumberInput className={`${field} w-16`} value={newGroup.percent} onChange={(v) => setNewGroup({ ...newGroup, percent: v })} /></label>
           <button className="rounded bg-white px-3 py-1.5 text-sm shadow">Crear grupo</button>
         </form>
       </section>

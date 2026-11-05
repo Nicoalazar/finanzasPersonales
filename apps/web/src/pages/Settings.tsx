@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { formatMoney } from "../lib/format";
 import { useAccounts, useCategories, useCreateAccount, useCreateCategory, useDeleteCategory } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 
@@ -23,25 +24,25 @@ export function Settings() {
   return (
     <main className="grid gap-6 md:grid-cols-2">
       {error && <p className="col-span-full rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
-      <section className="space-y-3">
+      <section className="min-w-0 space-y-3">
         <h2 className="font-semibold">Cuentas</h2>
         <ul className="divide-y rounded-xl bg-white shadow">
           {accounts.map((a) => (
-            <li key={a.id} className="flex justify-between px-4 py-2 text-sm"><span>{a.name}</span><span className="text-slate-600">{formatMoney(a.balance)}</span></li>
+            <li key={a.id} className="flex justify-between gap-3 px-4 py-2 text-sm"><span className="truncate">{a.name}</span><span className="shrink-0 tabular-nums text-slate-600">{formatMoney(a.balance)}</span></li>
           ))}
           {accounts.length === 0 && <li className="p-4 text-sm text-slate-500">Todavía no hay cuentas.</li>}
         </ul>
         <form className="flex flex-wrap gap-2" onSubmit={run(async () => { await createAccount.mutateAsync({ ...acc, initialBalance: Number(acc.initialBalance.replace(",", ".")) || 0 }); setAcc({ ...acc, name: "" }); })}>
-          <input className={`${field} flex-1`} placeholder="Nombre (ej. Brubank)" value={acc.name} onChange={(e) => setAcc({ ...acc, name: e.target.value })} required />
-          <select className={field} value={acc.kind} onChange={(e) => setAcc({ ...acc, kind: e.target.value })}>
+          <input className={`${field} w-full sm:w-auto sm:flex-1`} placeholder="Nombre (ej. Brubank)" value={acc.name} onChange={(e) => setAcc({ ...acc, name: e.target.value })} required />
+          <select className={`${field} flex-1 sm:flex-none`} value={acc.kind} onChange={(e) => setAcc({ ...acc, kind: e.target.value })}>
             <option value="BANK">Banco</option><option value="WALLET">Billetera</option><option value="CASH">Efectivo</option><option value="INVESTMENT">Inversión</option>
           </select>
-          <input className={`${field} w-28`} inputMode="decimal" placeholder="Saldo inicial" value={acc.initialBalance} onChange={(e) => setAcc({ ...acc, initialBalance: e.target.value })} />
+          <NumberInput className={`${field} w-28 flex-1 sm:flex-none`} placeholder="Saldo inicial" aria-label="Saldo inicial" value={acc.initialBalance} onChange={(v) => setAcc({ ...acc, initialBalance: v })} />
           <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Agregar</button>
         </form>
       </section>
 
-      <section className="space-y-3">
+      <section className="min-w-0 space-y-3">
         <h2 className="font-semibold">Categorías</h2>
         {(["EXPENSE", "INCOME"] as const).map((type) => (
           <div key={type}>

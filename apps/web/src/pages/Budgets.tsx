@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import type { BudgetRowDto } from "@finanzas/shared";
+import { MonthNav } from "../components/MonthNav";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
 import { useBudgets, useCopyBudgets, useDeleteBudget, useSetBudget } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", "."));
@@ -41,12 +43,12 @@ function Row({ row, month, onError }: { row: BudgetRowDto; month: string; onErro
           <span className={`rounded-full px-2 py-0.5 text-xs ${row.status === "OVER" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"}`}>{LABEL[row.status]}</span>
         )}
         {row.categoryId && (
-          <input className={`${field} w-28 text-right`} inputMode="decimal" placeholder="Sin límite" value={value} aria-label={`Presupuesto de ${row.name}`}
-            onChange={(e) => setValue(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+          <NumberInput className={`${field} w-28 text-right`} placeholder="Sin límite" value={value} aria-label={`Presupuesto de ${row.name}`}
+            onChange={setValue} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
         )}
       </div>
       {row.budget != null && <Progress pct={row.pct} status={row.status} />}
-      <div className="flex justify-between text-xs text-slate-500">
+      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-slate-500">
         <span>Gastado {formatMoney(row.spent)}{row.pct != null && ` · ${row.pct.toLocaleString("es-AR")}%`}</span>
         {row.remaining != null && (
           <span className={row.remaining < 0 ? "text-rose-600" : ""}>{row.remaining < 0 ? `Te pasaste ${formatMoney(-row.remaining)}` : `Quedan ${formatMoney(row.remaining)}`}</span>
@@ -82,11 +84,7 @@ export function Budgets() {
 
   return (
     <main className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
-        <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
-        <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
-      </div>
+      <MonthNav month={month} onChange={setMonth} />
 
       {t && t.budget > 0 && (
         <section className="space-y-2 rounded-xl bg-white p-4 shadow">
@@ -104,7 +102,7 @@ export function Budgets() {
 
       <section className="flex flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm shadow">
         <span>Copiar de {monthLabel(prev)} con</span>
-        <label className="flex items-center gap-1">+<input className={`${field} w-16`} inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} aria-label="Aumento en porcentaje" />%</label>
+        <label className="flex items-center gap-1">+<NumberInput className={`${field} w-16`} value={pct} onChange={setPct} aria-label="Aumento en porcentaje" />%</label>
         <label className="flex items-center gap-1 text-xs text-slate-500"><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /> Reemplazar los ya cargados</label>
         <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={doCopy} disabled={copy.isPending}>Copiar</button>
         {notice && <span className="text-xs text-emerald-700">{notice}</span>}

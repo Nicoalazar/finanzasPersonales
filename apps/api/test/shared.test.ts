@@ -125,6 +125,11 @@ describe("gastos compartidos", () => {
     expect(res.statusCode).toBe(201);
     expect((await month()).total).toBe(135000);
     await call("POST", "/api/recurring", { name: "Expensas", amount: 30000, startMonth: "2026-01", accountId: bank, sharedGroupId: hogar });
-    expect((await month()).overlappingRecurring).toEqual(["Expensas"]);
+    const m = await month();
+    expect(m.overlappingRecurring).toEqual(["Expensas"]);
+    // el recurrente del grupo suma al total y a las partes, sin tocar el saldo
+    expect(m.recurring).toMatchObject([{ name: "Expensas", total: 30000 }]);
+    expect(m.total).toBe(165000);
+    expect(m.paidByMe + m.paidByPartner).toBe(m.total);
   });
 });

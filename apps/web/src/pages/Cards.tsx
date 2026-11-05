@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { CardDto, StatementDto } from "@finanzas/shared";
 import { PurchaseForm } from "../components/PurchaseForm";
+import { MonthNav } from "../components/MonthNav";
+import { iconBtn, iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, formatRate, formatUsd, monthLabel, shiftMonth } from "../lib/format";
 import {
   useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -55,15 +58,15 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
     setError("");
     try { await fn(); } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
   };
-  const row = "flex justify-between px-4 py-1.5 text-sm";
+  const row = "flex justify-between gap-3 px-4 py-1.5 text-sm";
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-white px-4 py-3 text-sm shadow">
         {([["closingDate", "Cierre", st.closingDate, st.closingIsCustom], ["dueDate", "Vencimiento", st.dueDate, st.dueIsCustom]] as const).map(([key, label, value, custom]) => (
-          <label key={key} className="flex items-center gap-2">
-            <span className="text-slate-500">{label}{custom && " (editado)"}</span>
-            <input className={field} type="date" value={value} required
+          <label key={key} className="flex w-full items-center gap-2 sm:w-auto">
+            <span className="w-24 shrink-0 text-slate-500 sm:w-auto">{label}{custom && <span className="block text-[11px] sm:inline"> (editado)</span>}</span>
+            <input className={`${field} flex-1 sm:flex-none`} type="date" value={value} required
               onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ month, [key]: e.target.value }))} />
             {custom && <button className="text-xs text-slate-500 underline" onClick={() => guard(() => patch.mutateAsync({ month, [key]: null }))}>Restablecer</button>}
           </label>
@@ -74,24 +77,26 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
       <div className="divide-y rounded-xl bg-white shadow">
         {st.items.length === 0 && <p className="p-4 text-sm text-slate-500">No hay cuotas en este resumen.</p>}
         {st.items.map((i) => (
-          <div key={i.installmentId} className="flex items-center gap-3 px-4 py-2">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{i.description}</div>
-              <div className="text-xs text-slate-500">
+          <div key={i.installmentId} className="py-2 pl-4 pr-2">
+            <div className="flex items-baseline justify-between gap-2 pr-2">
+              <span className="truncate text-sm">{i.description}</span>
+              <span className="shrink-0 text-sm font-medium tabular-nums">{formatMoney(i.amount)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="min-w-0 flex-1 text-xs text-slate-500">
                 {i.usdAmount != null ? `${formatUsd(i.usdAmount)} × ${formatRate(i.rate!)}${st.usdEstimated ? " (estimada)" : ""}` : `Cuota ${i.number}/${i.count}`}
                 {i.shares.map((s) => ` · ${s.name} ${formatMoney(s.amount)}`).join("")}
               </div>
+              {[-1, 1].map((d) => (
+                <button key={d} className={iconBtn} aria-label={d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"}
+                  title={`${d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"} (mueve toda la compra)`}
+                  onClick={() => guard(() => move.mutateAsync({ id: i.purchaseId, firstStatementMonth: shiftMonth(month, d - (i.number - 1)) }))}>
+                  {d < 0 ? "‹" : "›"}
+                </button>
+              ))}
+              <button className={iconBtnDanger} aria-label="Eliminar compra" title="Eliminar la compra completa"
+                onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && guard(() => delPurchase.mutateAsync(i.purchaseId))}>✕</button>
             </div>
-            <span className="text-sm font-medium">{formatMoney(i.amount)}</span>
-            {[-1, 1].map((d) => (
-              <button key={d} className="px-1 text-slate-400 hover:text-slate-900" aria-label={d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"}
-                title={`${d < 0 ? "Pasar al resumen anterior" : "Pasar al resumen siguiente"} (mueve toda la compra)`}
-                onClick={() => guard(() => move.mutateAsync({ id: i.purchaseId, firstStatementMonth: shiftMonth(month, d - (i.number - 1)) }))}>
-                {d < 0 ? "‹" : "›"}
-              </button>
-            ))}
-            <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar compra" title="Eliminar la compra completa"
-              onClick={() => confirm(`¿Eliminar "${i.description}" y todas sus cuotas?`) && guard(() => delPurchase.mutateAsync(i.purchaseId))}>✕</button>
           </div>
         ))}
       </div>
@@ -109,8 +114,8 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
                 Cotización del dólar del resumen
                 {st.usdEstimated && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">estimada</span>}
               </label>
-              <input id="usdRate" className={`${field} w-32 text-right`} inputMode="decimal" placeholder="la del banco" value={usdRate} disabled={!!st.paidAt}
-                onChange={(e) => setUsdRate(e.target.value)}
+              <NumberInput id="usdRate" className={`${field} w-28 shrink-0 text-right sm:w-32`} placeholder="la del banco" value={usdRate} disabled={!!st.paidAt}
+                onChange={setUsdRate}
                 onBlur={() => {
                   const v = parseNum(usdRate);
                   if ((v || null) !== st.usdRate) guard(() => patch.mutateAsync({ month, usdRate: v > 0 ? v : null }));
@@ -124,15 +129,15 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
         <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰</span><span>{formatMoney(st.stampTax)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
-          <input id="adj" className={`${field} w-32 text-right`} inputMode="decimal" value={adjustment} disabled={!!st.paidAt}
-            onChange={(e) => setAdjustment(e.target.value)} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
+          <NumberInput id="adj" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={adjustment} disabled={!!st.paidAt}
+            onChange={setAdjustment} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
         </div>
         <div className={`${row} font-semibold`}><span>Total del resumen</span><span>{formatMoney(st.total)}</span></div>
         <div className={row}><span>Corresponde a terceros</span><span>− {formatMoney(st.thirdParty)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="ref">Reintegros</label>
-          <input id="ref" className={`${field} w-32 text-right`} inputMode="decimal" value={refunds} disabled={!!st.paidAt}
-            onChange={(e) => setRefunds(e.target.value)} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
+          <NumberInput id="ref" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={refunds} disabled={!!st.paidAt}
+            onChange={setRefunds} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
         </div>
         <div className={`${row} font-semibold text-rose-600`}><span>Neto propio</span><span>{formatMoney(st.netOwn)}</span></div>
       </div>
@@ -152,12 +157,12 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
           </>
         ) : (
           <>
-            <select className={field} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <select className={`${field} flex-1 sm:flex-none`} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
               <option value="">Cuenta de pago</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <input className={field} type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-            <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50" disabled={st.total <= 0 || pay.isPending || st.usdEstimated}
+            <input className={`${field} flex-1 sm:flex-none`} type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            <button className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50 sm:w-auto" disabled={st.total <= 0 || pay.isPending || st.usdEstimated}
               onClick={() => guard(() => pay.mutateAsync({ month, date: payDate, accountId: accountId || undefined }))}>
               Pagar {formatMoney(st.total)}
             </button>
@@ -183,11 +188,11 @@ export function Cards() {
 
   return (
     <main className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {cards.map((c) => (
-          <button key={c.id} onClick={() => setCardId(c.id)} className={`rounded px-3 py-1.5 text-sm ${c.id === card?.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{c.name}</button>
+          <button key={c.id} onClick={() => setCardId(c.id)} className={`shrink-0 rounded px-3 py-1.5 text-sm ${c.id === card?.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{c.name}</button>
         ))}
-        {!newCard && <button className="rounded bg-white px-3 py-1.5 text-sm shadow" onClick={() => setNewCard(true)}>+ Tarjeta</button>}
+        {!newCard && <button className="shrink-0 rounded bg-white px-3 py-1.5 text-sm shadow" onClick={() => setNewCard(true)}>+ Tarjeta</button>}
       </div>
       {newCard && <NewCardForm onDone={() => setNewCard(false)} />}
 
@@ -195,14 +200,9 @@ export function Cards() {
         <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Creá tu primera tarjeta para empezar a cargar compras en cuotas.</p>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Mes anterior">‹</button>
-              <h1 className="min-w-40 text-center text-lg font-semibold">{monthLabel(month)}</h1>
-              <button className="rounded bg-white px-2 py-1 shadow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Mes siguiente">›</button>
-            </div>
-            {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" onClick={() => setAdding(true)}>+ Compra</button>}
-          </div>
+          <MonthNav month={month} onChange={setMonth}>
+            {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Compra</button>}
+          </MonthNav>
           <p className="-mt-2 text-xs text-slate-500">Por defecto cierra el día {card.closingDay} y vence el {card.dueDay}</p>
           {adding && <PurchaseForm card={card} onDone={() => setAdding(false)} />}
           {st && <StatementView key={`${card.id}-${month}`} card={card} st={st} month={month} />}
@@ -214,10 +214,10 @@ export function Cards() {
           <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses <span className="text-xs font-normal text-slate-500">· neto propio, sin lo de terceros</span></h2>
           <div className="divide-y rounded-xl bg-white shadow">
             {commitments.map((m) => (
-              <div key={m.month} className="flex items-baseline justify-between px-4 py-2 text-sm">
+              <div key={m.month} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 px-4 py-2 text-sm sm:grid-cols-[11rem_1fr_auto]">
                 <span>{monthLabel(m.month)}</span>
-                <span className="text-xs text-slate-500">{m.byCard.map((c) => `${nameOf(c.cardId)} ${formatMoney(c.total)}`).join(" · ")}</span>
-                <span className="font-medium">{formatMoney(m.total)}</span>
+                <span className="order-last col-span-2 text-xs text-slate-500 sm:order-none sm:col-span-1">{m.byCard.map((c) => `${nameOf(c.cardId)} ${formatMoney(c.total)}`).join(" · ")}</span>
+                <span className="text-right font-medium tabular-nums">{formatMoney(m.total)}</span>
               </div>
             ))}
           </div>
