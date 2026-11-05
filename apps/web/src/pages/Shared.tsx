@@ -196,7 +196,7 @@ export function Shared() {
       {!config.defaultAccountId && <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Elegí de qué cuenta salen tus pagos para que se registren en tus movimientos.</p>}
       {m.recurring.length > 0 && (
         <p className="rounded bg-slate-100 p-3 text-sm text-slate-700">
-          Recurrentes sumados al mes: {m.recurring.map((r) => `${r.name} (${formatMoney(r.total)}, mi parte ${formatMoney(r.myShare)})`).join(" · ")}.
+          Recurrentes del grupo sumados al mes: {m.recurring.map((r) => `${r.name} (${formatMoney(r.total)}, mi parte ${formatMoney(r.myShare)})`).join(" · ")}.
           {m.overlappingRecurring.length > 0 && " Si también los cargan en el formulario se cuentan dos veces."}
         </p>
       )}
