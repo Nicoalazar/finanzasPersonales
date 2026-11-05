@@ -1,11 +1,14 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { splitInstallments } from "@finanzas/shared";
 import type { CardDto } from "@finanzas/shared";
-import { formatMoney, monthLabel, today } from "../lib/format";
-import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, usePersons } from "../lib/queries";
+import { formatMoney, formatRate, formatUsd, monthLabel, today } from "../lib/format";
+import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, useFxUsd, usePersons } from "../lib/queries";
 
-const field = "w-full rounded border bg-white px-2 py-1.5 text-sm";
+const box = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = `w-full ${box}`;
+const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
 interface ShareRow { personId: string; mode: "PERCENT" | "AMOUNT"; value: string }
+type Currency = "ARS" | "USD";
 
 export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => void }) {
   const categories = (useCategories().data ?? []).filter((c) => c.type === "EXPENSE");
@@ -16,25 +19,44 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [count, setCount] = useState("1");
+  const [currency, setCurrency] = useState<Currency>("ARS");
+  const [rate, setRate] = useState("");
+  const [rateTouched, setRateTouched] = useState(false);
   const [categoryId, setCategoryId] = useState("");
   const [shares, setShares] = useState<ShareRow[]>([]);
   const [newPerson, setNewPerson] = useState("");
   const [error, setError] = useState("");
 
-  const total = Number(amount.replace(",", ".")) || 0;
-  const n = Math.max(1, Math.floor(Number(count)) || 1);
+  const isUsd = currency === "USD";
+  const fx = useFxUsd(card.id, isUsd);
+  // La cotización sugerida (API o último resumen) rellena el campo hasta que la edites a mano.
+  useEffect(() => {
+    if (isUsd && !rateTouched && fx.data?.rate) setRate(String(fx.data.rate));
+  }, [isUsd, rateTouched, fx.data?.rate]);
+
+  const total = parseNum(amount);
+  const rateNum = parseNum(rate);
+  const n = isUsd ? 1 : Math.max(1, Math.floor(Number(count)) || 1);
   const first = useFirstMonth(card.id, date).data?.month;
   const cuota = total > 0 ? splitInstallments(total, n)[0]! / 100 : 0;
+  // En dólares la compra es mía o de una sola persona al 100%.
+  const soloOne = isUsd && shares.length >= 1;
 
+  const pickCurrency = (c: Currency) => {
+    setCurrency(c);
+    if (c === "USD") setShares(shares.slice(0, 1).map((s) => ({ ...s, mode: "PERCENT", value: "100" })));
+  };
   const setShare = (i: number, patch: Partial<ShareRow>) => setShares(shares.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (isUsd && !(rateNum > 0)) return setError("Ingresá la cotización del dólar");
     try {
       await create.mutateAsync({
         cardId: card.id, date, description, totalAmount: total, installmentCount: n, categoryId: categoryId || null,
-        shares: shares.filter((s) => s.personId).map((s) => ({ personId: s.personId, mode: s.mode, value: Number(s.value.replace(",", ".")) })),
+        currency, ...(isUsd && { usdRateEstimate: rateNum }),
+        shares: shares.filter((s) => s.personId).map((s) => ({ personId: s.personId, mode: s.mode, value: parseNum(s.value) })),
       });
       onDone();
     } catch (err) {
@@ -53,6 +75,11 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
     }
   };
 
+  const rateSource = fx.isLoading ? "Buscando el dólar oficial…"
+    : fx.data?.source === "api" ? "dólar oficial de hoy"
+    : fx.data?.source === "statement" ? "última cotización cargada en un resumen"
+    : "no pude obtener la cotización: ingresala a mano";
+
   return (
     <form onSubmit={submit} className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow sm:grid-cols-4">
       <input className={`${field} col-span-2`} placeholder="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} required />
@@ -61,32 +88,59 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
         <option value="">Sin categoría</option>
         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
-      <input className={field} inputMode="decimal" placeholder="Monto total" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-      <input className={field} type="number" min={1} max={60} value={count} onChange={(e) => setCount(e.target.value)} aria-label="Cuotas" />
-      <p className="col-span-2 self-center text-xs text-slate-500">
-        {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {first ? monthLabel(first) : "…"}
-      </p>
+      <div className="flex gap-2">
+        <select className={`${box} w-20 shrink-0`} value={currency} onChange={(e) => pickCurrency(e.target.value as Currency)} aria-label="Moneda">
+          <option value="ARS">ARS</option><option value="USD">USD</option>
+        </select>
+        <input className={`${field} min-w-0`} inputMode="decimal" placeholder={isUsd ? "Monto en USD" : "Monto total"} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      </div>
+      <input className={field} type="number" min={1} max={60} value={isUsd ? "1" : count} disabled={isUsd} title={isUsd ? "Las compras en USD son en un solo pago" : undefined}
+        onChange={(e) => setCount(e.target.value)} aria-label="Cuotas" />
+      {isUsd && (
+        <input className={field} inputMode="decimal" placeholder="Cotización" value={rate} aria-label="Cotización estimada"
+          onChange={(e) => { setRate(e.target.value); setRateTouched(true); }} required />
+      )}
+      {isUsd ? (
+        <p className="col-span-2 self-center text-xs text-slate-500 sm:col-span-4">
+          {formatUsd(total)}{rateNum > 0 && <> × {formatRate(rateNum)} ≈ <strong>{formatMoney(total * rateNum)}</strong></>} · cotización estimada ({rateSource}) ·
+          va al resumen de {first ? monthLabel(first) : "…"}. Al llegar el resumen cargá la cotización real del banco.
+        </p>
+      ) : (
+        <p className="col-span-2 self-center text-xs text-slate-500">
+          {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {first ? monthLabel(first) : "…"}
+        </p>
+      )}
 
       <div className="col-span-2 space-y-2 sm:col-span-4">
-        <div className="text-xs font-medium text-slate-500">Parte de terceros (opcional)</div>
+        <div className="text-xs font-medium text-slate-500">
+          {isUsd ? "Es de un tercero (opcional, la compra completa)" : "Parte de terceros (opcional)"}
+        </div>
         {shares.map((s, i) => (
           <div key={i} className="flex gap-2">
             <select className={field} value={s.personId} onChange={(e) => setShare(i, { personId: e.target.value })} required>
               <option value="">Persona</option>
               {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
-              <option value="PERCENT">% de la cuota</option><option value="AMOUNT">$ por cuota</option>
-            </select>
-            <input className={`${field} w-28`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+            {isUsd ? (
+              <span className="flex w-40 items-center text-sm text-slate-500">100% de la compra</span>
+            ) : (
+              <>
+                <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
+                  <option value="PERCENT">% de la cuota</option><option value="AMOUNT">$ por cuota</option>
+                </select>
+                <input className={`${field} w-28`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+              </>
+            )}
             <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={() => setShares([...shares, { personId: "", mode: "PERCENT", value: "50" }])}>+ Persona</button>
-          <input className={`${field} w-40`} placeholder="Nueva persona" value={newPerson} onChange={(e) => setNewPerson(e.target.value)} />
-          <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={addPerson}>Crear</button>
-        </div>
+        {!soloOne && (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={() => setShares([...shares, { personId: "", mode: "PERCENT", value: isUsd ? "100" : "50" }])}>+ Persona</button>
+            <input className={`${field} w-40`} placeholder="Nueva persona" value={newPerson} onChange={(e) => setNewPerson(e.target.value)} />
+            <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={addPerson}>Crear</button>
+          </div>
+        )}
       </div>
 
       {error && <p className="col-span-2 text-sm text-red-600 sm:col-span-4">{error}</p>}

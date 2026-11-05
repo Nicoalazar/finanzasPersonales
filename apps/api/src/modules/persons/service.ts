@@ -2,30 +2,32 @@ import { addMonths, fromCents, installmentMonths, occursIn, splitInstallments, t
 import { prisma } from "../../plugins/db.js";
 import { currentMonth, num } from "../../lib.js";
 import { loadRecurring, myCents } from "../recurring/service.js";
-import { installmentShareCents } from "../cards/statement.js";
+import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 
 export interface Accrual { personId: string; month: string; cents: number; line: PersonLineDto }
 
 /** Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas. */
 export async function accruals(personId?: string): Promise<Accrual[]> {
-  const [installments, charges, recurring] = await Promise.all([
+  const [installments, charges, recurring, rates] = await Promise.all([
     prisma.cardInstallment.findMany({
       where: { purchase: { shares: { some: personId ? { personId } : {} } } },
       include: { purchase: { include: { shares: true, card: true } } },
     }),
     prisma.personCharge.findMany({ where: personId ? { personId } : {} }),
     loadRecurring({ shares: { some: personId ? { personId } : {} } }),
+    loadStatementRates(),
   ]);
 
   const out: Accrual[] = [];
   for (const i of installments) {
-    const amountCents = toCents(num(i.amount));
+    const ars = installmentArs(i, rates);
+    const amountCents = ars.cents;
     for (const s of i.purchase.shares) {
       if (personId && s.personId !== personId) continue;
       const cents = installmentShareCents(amountCents, { mode: s.mode, value: num(s.value) });
       out.push({
         personId: s.personId, month: i.month, cents,
-        line: { kind: "CARD", refId: i.purchaseId, description: i.purchase.description, source: i.purchase.card.name, number: i.number, count: i.purchase.installmentCount, amount: fromCents(cents) },
+        line: { kind: "CARD", refId: i.purchaseId, description: i.purchase.description, source: i.purchase.card.name, number: i.number, count: i.purchase.installmentCount, amount: fromCents(cents), ...(ars.estimated && { estimated: true }) },
       });
     }
   }

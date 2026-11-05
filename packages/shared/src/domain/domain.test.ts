@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { splitInstallments, firstStatementMonth, addMonths } from "./installments.js";
-import { computeStatement, householdShareCents } from "./cardStatement.js";
+import { computeStatement, householdShareCents, installmentArsCents } from "./cardStatement.js";
+import { purchaseInput } from "../schemas/index.js";
 import { parseAmount, parseCsv, parseFormCsv, parseFormDate, sharedMonthCents } from "./sharedForm.js";
 
 describe("cuotas", () => {
@@ -184,5 +185,39 @@ describe("gastos compartidos (formulario)", () => {
     expect(m.myShareCents).toBe(70_000_00);
     expect(m.byKind.get("Alquiler")!.myCents).toBe(38_500_00);
     expect(m.balanceCents).toBe(20_000_00); // Euge me debe 20.000
+  });
+});
+
+describe("compras en dólares", () => {
+  const usd = { currency: "USD" as const, amountCents: 5000, estimateRate: 1200 };
+  it("las de pesos no se convierten", () => {
+    expect(installmentArsCents({ currency: "ARS", amountCents: 12345, estimateRate: null }, 1500)).toEqual({ cents: 12345, rate: null, estimated: false });
+  });
+  it("sin cotización real usa la estimada y avisa", () => {
+    expect(installmentArsCents(usd, null)).toEqual({ cents: 6000000, rate: 1200, estimated: true });
+  });
+  it("la cotización real del resumen pisa a la estimada", () => {
+    expect(installmentArsCents(usd, 1250.5)).toEqual({ cents: 6252500, rate: 1250.5, estimated: false });
+  });
+  it("redondea al centavo", () => {
+    expect(installmentArsCents({ currency: "USD", amountCents: 333, estimateRate: 1234.5678 }, null).cents).toBe(411111); // 333 × 1234,5678 = 411111,08
+  });
+  it("una compra USD sin ninguna cotización es un error, no un cero silencioso", () => {
+    expect(() => installmentArsCents({ currency: "USD", amountCents: 100, estimateRate: null }, null)).toThrow();
+  });
+
+  const base = { cardId: "c", date: "2026-03-10", description: "x", totalAmount: 50 };
+  it("USD es en un solo pago", () => {
+    expect(purchaseInput.safeParse({ ...base, currency: "USD", installmentCount: 3 }).success).toBe(false);
+    expect(purchaseInput.safeParse({ ...base, currency: "USD" }).success).toBe(true);
+    expect(purchaseInput.safeParse({ ...base, installmentCount: 3 }).success).toBe(true);
+  });
+  it("USD es mío o de una sola persona al 100%", () => {
+    const share = (value: number, mode: "PERCENT" | "AMOUNT" = "PERCENT", personId = "p1") => ({ personId, mode, value });
+    expect(purchaseInput.safeParse({ ...base, currency: "USD", shares: [share(100)] }).success).toBe(true);
+    expect(purchaseInput.safeParse({ ...base, currency: "USD", shares: [share(50)] }).success).toBe(false);
+    expect(purchaseInput.safeParse({ ...base, currency: "USD", shares: [share(50), share(50, "PERCENT", "p2")] }).success).toBe(false);
+    expect(purchaseInput.safeParse({ ...base, currency: "USD", shares: [share(100, "AMOUNT")] }).success).toBe(false);
+    expect(purchaseInput.safeParse({ ...base, shares: [share(50), share(50, "PERCENT", "p2")] }).success).toBe(true);
   });
 });

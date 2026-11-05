@@ -1,7 +1,7 @@
 import { budgetStatus, fromCents, toCents, type BudgetRowDto, type BudgetsDto } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
 import { num } from "../../lib.js";
-import { installmentShareCents } from "../cards/statement.js";
+import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 import { sharedCategoryCents } from "../shared/service.js";
 
 /**
@@ -11,19 +11,20 @@ import { sharedCategoryCents } from "../shared/service.js";
  * De los gastos compartidos cuenta solo mi parte; mis pagos y el saldo con la pareja son caja, no categoría.
  */
 export async function categorySpending(month: string): Promise<Map<string | null, number>> {
-  const [txs, installments, shared] = await Promise.all([
+  const [txs, installments, shared, rates] = await Promise.all([
     prisma.transaction.groupBy({
       by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null, sharedExpenseId: null, sharedMonth: null }, _sum: { amount: true },
     }),
     prisma.cardInstallment.findMany({ where: { month, purchase: { sharedExpenseId: null } }, include: { purchase: { include: { shares: true } } } }),
     sharedCategoryCents(month),
+    loadStatementRates({ month }),
   ]);
   const out = new Map<string | null, number>();
   const add = (k: string | null, cents: number) => out.set(k, (out.get(k) ?? 0) + cents);
 
   for (const t of txs) add(t.categoryId, toCents(num(t._sum.amount)));
   for (const i of installments) {
-    const amount = toCents(num(i.amount));
+    const amount = installmentArs(i, rates).cents;
     const others = i.purchase.shares.reduce((a, s) => a + installmentShareCents(amount, { mode: s.mode, value: num(s.value) }), 0);
     add(i.purchase.categoryId, Math.max(0, amount - others));
   }

@@ -76,6 +76,7 @@ function Detail({ id }: { id: string }) {
             {m.lines.map((l, i) => (
               <div key={i} className="flex items-center gap-2 px-4 py-1.5 text-sm">
                 <span className="flex-1 truncate">{l.description} <span className="text-xs text-slate-500">· {l.source}{l.kind !== "RECURRING" && ` · ${l.number}/${l.count}`}</span></span>
+                {l.estimated && <span className="text-xs text-amber-600" title="Consumo en USD: usa la cotización estimada hasta que se cargue la del resumen">estimado</span>}
                 <span>{formatMoney(l.amount)}</span>
                 {l.kind === "CHARGE" && (
                   <button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar cargo" title="Elimina el cargo completo"

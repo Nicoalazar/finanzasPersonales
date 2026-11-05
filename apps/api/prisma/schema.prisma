@@ -47,6 +47,10 @@ enum SharedSource {
   FORM
   MANUAL
 }
+enum Currency {
+  ARS
+  USD
+}
 
 model User {
   id           String   @id @default(cuid())
@@ -145,7 +149,11 @@ model CardPurchase {
   description String
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id])
+  /// En la moneda de `currency`. Las compras USD son siempre en un solo pago.
   totalAmount Decimal  @db.Decimal(14, 2)
+  currency    Currency @default(ARS)
+  /// Dólar oficial al cargar la compra; solo sirve hasta que el resumen tiene su cotización real.
+  usdRateEstimate Decimal? @db.Decimal(14, 4)
   installmentCount Int @default(1)
   firstStatementMonth String
   installments CardInstallment[]
@@ -173,6 +181,8 @@ model CardStatement {
   month      String
   adjustment Decimal  @default(0) @db.Decimal(14, 2)
   refunds    Decimal  @default(0) @db.Decimal(14, 2)
+  /// Cotización del dólar que aplicó el banco en este resumen (la del PDF); null hasta cargarla.
+  usdRate    Decimal? @db.Decimal(14, 4)
   /// Fechas reales de ese resumen; si son null se usan closingDay/dueDay de la tarjeta.
   closingDate DateTime? @db.Date
   dueDate     DateTime? @db.Date

@@ -1,6 +1,12 @@
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
 export const formatMoney = (n: number) => money.format(n);
 
+const usd = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD" });
+export const formatUsd = (n: number) => usd.format(n);
+const rate = new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+/** Cotización del dólar, por ejemplo $ 1.250,00 */
+export const formatRate = (n: number) => `$ ${rate.format(n)}`;
+
 export const currentMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 7);
 export const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" });
 
