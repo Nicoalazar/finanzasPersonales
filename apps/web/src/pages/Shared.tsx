@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import type { SharedConfigDto, SharedEntryDto, SharedImportResultDto } from "@finanzas/shared";
 import { MonthNav } from "../components/MonthNav";
 import { iconBtnDanger } from "../components/Stats";
@@ -194,10 +193,10 @@ export function Shared() {
       {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
       {result && <ImportResult r={result} />}
       {!config.defaultAccountId && <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Elegí de qué cuenta salen tus pagos para que se registren en tus movimientos.</p>}
-      {m.overlappingRecurring.length > 0 && (
-        <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">
-          Estos recurrentes también calculan tu parte del grupo: {m.overlappingRecurring.join(", ")}. Si se cargan en el formulario se cuentan dos veces;
-          sacales el grupo en <Link className="underline" to="/recurrentes">Recurrentes</Link>.
+      {m.recurring.length > 0 && (
+        <p className="rounded bg-slate-100 p-3 text-sm text-slate-700">
+          Recurrentes del grupo sumados al mes: {m.recurring.map((r) => `${r.name} (${formatMoney(r.total)}, mi parte ${formatMoney(r.myShare)})`).join(" · ")}.
+          {m.overlappingRecurring.length > 0 && " Si también los cargan en el formulario se cuentan dos veces."}
         </p>
       )}
 

@@ -387,6 +387,8 @@ export interface SharedMonthDto {
   /** > 0: la pareja me debe; < 0: le debo. */
   balance: number; settled: number; pending: number;
   byKind: SharedKindRowDto[]; entries: SharedEntryDto[]; settlements: SharedSettlementDto[];
+  /** Recurrentes del grupo en el mes: ya están sumados al total, a mi parte y a la de la pareja (no al saldo). */
+  recurring: { id: string; name: string; total: number; myShare: number }[];
   /** Recurrentes del mismo grupo activos en el mes: si también se cargan en el formulario se cuentan dos veces. */
   overlappingRecurring: string[];
 }
