@@ -3,6 +3,7 @@ import { splitInstallments } from "@finanzas/shared";
 import type { CardDto } from "@finanzas/shared";
 import { formatMoney, monthLabel, today } from "../lib/format";
 import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, usePersons } from "../lib/queries";
+import { NumberInput } from "./NumberInput";
 
 const field = "w-full rounded border bg-white px-2 py-1.5 text-sm";
 interface ShareRow { personId: string; mode: "PERCENT" | "AMOUNT"; value: string }
@@ -61,7 +62,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
         <option value="">Sin categoría</option>
         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
-      <input className={field} inputMode="decimal" placeholder="Monto total" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      <NumberInput className={field} placeholder="Monto total" value={amount} onChange={setAmount} required />
       <input className={field} type="number" min={1} max={60} value={count} onChange={(e) => setCount(e.target.value)} aria-label="Cuotas" />
       <p className="col-span-2 self-center text-xs text-slate-500">
         {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {first ? monthLabel(first) : "…"}
@@ -78,7 +79,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
             <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
               <option value="PERCENT">% de la cuota</option><option value="AMOUNT">$ por cuota</option>
             </select>
-            <input className={`${field} w-28`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+            <NumberInput className={`${field} w-28`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
             <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}

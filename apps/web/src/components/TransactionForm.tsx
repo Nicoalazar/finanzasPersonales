@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { TransactionInput } from "@finanzas/shared";
 import { useAccounts, useCategories, useCreateTransaction } from "../lib/queries";
 import { today } from "../lib/format";
+import { NumberInput } from "./NumberInput";
 
 const field = "w-full rounded border bg-white px-2 py-1.5 text-sm";
 
@@ -49,7 +50,7 @@ export function TransactionForm({ onDone }: { onDone: () => void }) {
         ))}
       </div>
       <input className={field} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-      <input className={field} inputMode="decimal" placeholder="Monto" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      <NumberInput className={field} placeholder="Monto" value={amount} onChange={setAmount} required />
       <select className={field} value={accountId || accounts[0]?.id} onChange={(e) => setAccountId(e.target.value)}>
         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>

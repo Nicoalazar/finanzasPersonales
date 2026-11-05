@@ -126,12 +126,11 @@ describe("protecciones", () => {
 });
 
 describe("terceros y baja", () => {
-  it("la parte de Guille en YouTube entra a su saldo (50% del monto mensual)", async () => {
-    // enero, febrero y marzo: 3 × 4000
+  it("los recurrentes no suman al saldo de las personas", async () => {
     const s = (await call("GET", "/api/persons/summary?asOf=2026-03")).json().find((p: any) => p.personId === guille);
-    expect(s).toMatchObject({ accrued: 12000, balance: 12000 });
+    expect(s).toMatchObject({ accrued: 0, balance: 0 });
     const d = (await call("GET", `/api/persons/${guille}?asOf=2026-03`)).json();
-    expect(d.months[0].lines[0]).toMatchObject({ kind: "RECURRING", description: "YouTube", amount: 4000 });
+    expect(d.months).toEqual([]);
   });
 
   it("eliminar un recurrente borra sus pendientes y conserva los pagados", async () => {

@@ -7,6 +7,7 @@ import {
   useAccounts, useCategories, useClearGroupPercent, useCreateGroup, useCreateRecurring, useDeleteRecurring, usePatchRecurring,
   usePersons, useRecurring, useSetGroupPercent, useSetPrice, useSharedGroups,
 } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -40,8 +41,8 @@ function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
       </div>
       <label className="flex items-center gap-2 text-sm">
         Mi parte en {monthLabel(month)}
-        <input className={`${field} w-20 text-right`} inputMode="decimal" value={value} aria-label={`Porcentaje de ${group.name}`}
-          onChange={(e) => setValue(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+        <NumberInput className={`${field} w-20 text-right`} value={value} aria-label={`Porcentaje de ${group.name}`}
+          onChange={setValue} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
         %
       </label>
       {group.percentIsOwn && (
@@ -106,9 +107,9 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
         <form className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3 text-sm"
           onSubmit={guard(async () => { await setPrice.mutateAsync({ id: r.id, fromMonth: month, amount: parseNum(amount) }); setEditing(false); })}>
           <span className="text-slate-500">Nuevo precio desde {monthLabel(month)}:</span>
-          <input className={`${field} w-32`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <NumberInput className={`${field} w-32`} value={amount} onChange={setAmount} required />
           <span className="text-slate-400">o aumento</span>
-          <input className={`${field} w-16`} inputMode="decimal" placeholder="10" value={pct} onChange={(e) => setPct(e.target.value)} onBlur={applyPct} />
+          <NumberInput className={`${field} w-16`} placeholder="10" value={pct} onChange={setPct} onBlur={applyPct} />
           <span className="text-slate-500">%</span>
           <button className="rounded bg-slate-900 px-3 py-1.5 text-white">Guardar</button>
         </form>
@@ -146,7 +147,7 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
         onDone();
       })}>
       <input className={`${field} col-span-2`} placeholder="Nombre (ej. Alquiler)" value={f.name} onChange={(e) => set({ name: e.target.value })} required />
-      <input className={field} inputMode="decimal" placeholder="Precio total" value={f.amount} onChange={(e) => set({ amount: e.target.value })} required />
+      <NumberInput className={field} placeholder="Precio total" value={f.amount} onChange={(v) => set({ amount: v })} required />
       <select className={field} value={f.frequency} onChange={(e) => set({ frequency: e.target.value })}>
         {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
       </select>
@@ -174,7 +175,7 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
             <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
               <option value="PERCENT">% del monto</option><option value="AMOUNT">$ por mes</option>
             </select>
-            <input className={`${field} w-24`} inputMode="decimal" value={s.value} onChange={(e) => setShare(i, { value: e.target.value })} required />
+            <NumberInput className={`${field} w-24`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
             <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}
@@ -212,7 +213,7 @@ export function Recurring() {
         {groups.map((g) => <GroupCard key={g.id} group={g} month={month} />)}
         <form className="flex flex-wrap items-center gap-2 [&>input]:flex-1" onSubmit={guard(async () => { await createGroup.mutateAsync({ name: newGroup.name, myPercent: parseNum(newGroup.percent) }); setNewGroup({ ...newGroup, name: "" }); })}>
           <input className={field} placeholder={groups.length ? "Otro grupo" : "Nuevo grupo (ej. Hogar)"} value={newGroup.name} onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })} required />
-          <label className="text-xs text-slate-500">% base <input className={`${field} w-16`} inputMode="decimal" value={newGroup.percent} onChange={(e) => setNewGroup({ ...newGroup, percent: e.target.value })} /></label>
+          <label className="text-xs text-slate-500">% base <NumberInput className={`${field} w-16`} value={newGroup.percent} onChange={(v) => setNewGroup({ ...newGroup, percent: v })} /></label>
           <button className="rounded bg-white px-3 py-1.5 text-sm shadow">Crear grupo</button>
         </form>
       </section>

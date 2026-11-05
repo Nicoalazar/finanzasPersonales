@@ -3,6 +3,7 @@ import type { InvestmentAccountDto } from "@finanzas/shared";
 import { StatRow, iconBtnDanger } from "../components/Stats";
 import { formatDay, formatMoney, today } from "../lib/format";
 import { useAccounts, useAddInvestmentMovement, useAddSnapshot, useDeleteSnapshot, useDeleteTransaction, useInvestments } from "../lib/queries";
+import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -54,7 +55,7 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
           <div className="text-sm font-medium">Anotar saldo real</div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <input className={field} type="date" value={snap.date} onChange={(e) => setSnap({ ...snap, date: e.target.value })} required aria-label="Fecha del saldo" />
-            <input className={`${field} sm:w-36`} inputMode="decimal" placeholder="Saldo real" value={snap.balance} onChange={(e) => setSnap({ ...snap, balance: e.target.value })} required />
+            <NumberInput className={`${field} sm:w-36`} placeholder="Saldo real" value={snap.balance} onChange={(v) => setSnap({ ...snap, balance: v })} required />
             <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
           </div>
           <p className="text-xs text-slate-500">Si ya anotaste esa fecha, se reemplaza.</p>
@@ -77,7 +78,7 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
                 {others.map((x) => <option key={x.id} value={x.id}>{mov.kind === "DEPOSIT" ? "Desde " : "Hacia "}{x.name}</option>)}
               </select>
               <input className={field} type="date" value={mov.date} onChange={(e) => setMov({ ...mov, date: e.target.value })} required aria-label="Fecha" />
-              <input className={`${field} sm:w-32`} inputMode="decimal" placeholder="Monto" value={mov.amount} onChange={(e) => setMov({ ...mov, amount: e.target.value })} required />
+              <NumberInput className={`${field} sm:w-32`} placeholder="Monto" value={mov.amount} onChange={(v) => setMov({ ...mov, amount: v })} required />
               <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
             </div>
           )}
