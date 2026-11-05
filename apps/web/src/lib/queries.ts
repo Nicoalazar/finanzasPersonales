@@ -22,12 +22,15 @@ export const useCreateCategory = () => useInvalidatingMutation((v: { name: strin
 export const useDeleteCategory = () => useInvalidatingMutation((id: string) => api(`/categories/${id}`, { method: "DELETE" }));
 
 // ---- Tarjetas ----
-import type { CardDto, CommitmentDto, PersonDto, PurchaseInput, StatementDto } from "@finanzas/shared";
+import type { CardDto, CommitmentDto, FxQuoteDto, PersonDto, PurchaseInput, StatementDto } from "@finanzas/shared";
 
 export const useCards = () => useQuery({ queryKey: ["cards"], queryFn: () => api<CardDto[]>("/cards") });
 export const usePersons = () => useQuery({ queryKey: ["persons"], queryFn: () => api<PersonDto[]>("/persons") });
 export const useStatement = (cardId: string | undefined, month: string) =>
   useQuery({ queryKey: ["statement", cardId, month], enabled: !!cardId, queryFn: () => api<StatementDto>(`/cards/${cardId}/statement?month=${month}`) });
+/** Dólar oficial sugerido para una compra USD; sin datos devuelve rate null y el formulario lo pide a mano. */
+export const useFxUsd = (cardId: string, enabled: boolean) =>
+  useQuery({ queryKey: ["fx-usd", cardId], enabled, staleTime: 5 * 60_000, retry: false, queryFn: () => api<FxQuoteDto>(`/fx/usd?cardId=${cardId}`) });
 export const useCommitments = (from: string) =>
   useQuery({ queryKey: ["commitments", from], queryFn: () => api<CommitmentDto[]>(`/cards/commitments?from=${from}&months=12`) });
 
@@ -37,7 +40,7 @@ export const useCreatePerson = () => useInvalidatingMutation<string, PersonDto>(
 export const useCreatePurchase = () => useInvalidatingMutation((v: Partial<PurchaseInput>) => api("/card-purchases", { method: "POST", json: v }));
 export const useDeletePurchase = () => useInvalidatingMutation((id: string) => api(`/card-purchases/${id}`, { method: "DELETE" }));
 export const usePatchStatement = (cardId: string) =>
-  useInvalidatingMutation((v: { month: string; adjustment?: number; refunds?: number }) => api(`/cards/${cardId}/statement`, { method: "PATCH", json: v }));
+  useInvalidatingMutation((v: { month: string; adjustment?: number; refunds?: number; usdRate?: number | null }) => api(`/cards/${cardId}/statement`, { method: "PATCH", json: v }));
 export const usePayStatement = (cardId: string) =>
   useInvalidatingMutation((v: { month: string; date: string; accountId?: string }) => api(`/cards/${cardId}/statement/pay`, { method: "POST", json: v }));
 export const useUnpayStatement = (cardId: string) =>

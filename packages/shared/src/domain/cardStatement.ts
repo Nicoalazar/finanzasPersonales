@@ -32,3 +32,20 @@ export function shareCents(totalCents: number, share: { mode: "PERCENT" | "AMOUN
 /** Parte propia de un gasto compartido (Hogar = 35%). */
 export const householdShareCents = (totalCents: number, myPercent: number): number =>
   Math.round((totalCents * myPercent) / 100);
+
+export type Currency = "ARS" | "USD";
+
+/**
+ * Pesos que vale una cuota. Las de ARS no se convierten. Las de USD usan la cotización real del resumen y,
+ * mientras no esté cargada, la estimada que quedó en la compra (`estimated` avisa que el número va a moverse).
+ * Es el único lugar donde se convierte: resumen, personas y presupuestos pasan por acá.
+ */
+export function installmentArsCents(
+  i: { currency: Currency; amountCents: number; estimateRate: number | null },
+  statementRate: number | null,
+): { cents: number; rate: number | null; estimated: boolean } {
+  if (i.currency === "ARS") return { cents: i.amountCents, rate: null, estimated: false };
+  const rate = statementRate ?? i.estimateRate;
+  if (rate == null || !(rate > 0)) throw new Error("Una compra en USD necesita cotización");
+  return { cents: Math.round(i.amountCents * rate), rate, estimated: statementRate == null };
+}

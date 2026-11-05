@@ -1,7 +1,7 @@
 import { defaultDueDate, fromCents, installmentMonths, splitInstallments, toCents, type PersonLineDto, type PersonSummaryDto } from "@finanzas/shared";
 import { prisma } from "../../plugins/db.js";
 import { fromDbDate, num } from "../../lib.js";
-import { installmentShareCents } from "../cards/statement.js";
+import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 
 export interface Accrual { personId: string; month: string; cents: number; line: PersonLineDto }
 
@@ -11,13 +11,14 @@ export interface Accrual { personId: string; month: string; cents: number; line:
  * el resumen de octubre que vence en noviembre cuenta en noviembre.
  */
 export async function accruals(personId?: string): Promise<Accrual[]> {
-  const [installments, charges, customDue] = await Promise.all([
+  const [installments, charges, customDue, rates] = await Promise.all([
     prisma.cardInstallment.findMany({
       where: { purchase: { shares: { some: personId ? { personId } : {} } } },
       include: { purchase: { include: { shares: true, card: true } } },
     }),
     prisma.personCharge.findMany({ where: personId ? { personId } : {} }),
     prisma.cardStatement.findMany({ where: { dueDate: { not: null } }, select: { cardId: true, month: true, dueDate: true } }),
+    loadStatementRates(),
   ]);
   const dueOverride = new Map(customDue.map((s) => [`${s.cardId}|${s.month}`, fromDbDate(s.dueDate!).slice(0, 7)]));
   const dueMonth = (card: { id: string; closingDay: number; dueDay: number }, statementMonth: string) =>
@@ -25,14 +26,15 @@ export async function accruals(personId?: string): Promise<Accrual[]> {
 
   const out: Accrual[] = [];
   for (const i of installments) {
-    const amountCents = toCents(num(i.amount));
+    const ars = installmentArs(i, rates);
+    const amountCents = ars.cents;
     const month = dueMonth(i.purchase.card, i.month);
     for (const s of i.purchase.shares) {
       if (personId && s.personId !== personId) continue;
       const cents = installmentShareCents(amountCents, { mode: s.mode, value: num(s.value) });
       out.push({
         personId: s.personId, month, cents,
-        line: { kind: "CARD", refId: i.purchaseId, description: i.purchase.description, source: i.purchase.card.name, number: i.number, count: i.purchase.installmentCount, amount: fromCents(cents) },
+        line: { kind: "CARD", refId: i.purchaseId, description: i.purchase.description, source: i.purchase.card.name, number: i.number, count: i.purchase.installmentCount, amount: fromCents(cents), ...(ars.estimated && { estimated: true }) },
       });
     }
   }

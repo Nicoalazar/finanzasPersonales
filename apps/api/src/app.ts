@@ -11,6 +11,7 @@ import { authRoutes } from "./modules/auth/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
 import { categoryRoutes } from "./modules/categories/routes.js";
 import { cardRoutes } from "./modules/cards/routes.js";
+import { fxRoutes } from "./modules/fx/routes.js";
 import { budgetRoutes } from "./modules/budgets/routes.js";
 import { dashboardRoutes } from "./modules/dashboard/routes.js";
 import { exportRoutes } from "./modules/export/routes.js";
@@ -37,6 +38,7 @@ export async function buildApp() {
   await app.register(transactionRoutes);
   await app.register(personRoutes);
   await app.register(cardRoutes);
+  await app.register(fxRoutes);
   await app.register(recurringRoutes);
   await app.register(budgetRoutes);
   await app.register(payslipRoutes);

@@ -79,7 +79,8 @@ function Detail({ id }: { id: string }) {
               <div key={i} className="flex items-center gap-2 py-1.5 pl-4 pr-2 text-sm">
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{l.description}</div>
-                  <div className="text-xs text-slate-500">{l.source}{l.kind !== "RECURRING" && ` · cuota ${l.number}/${l.count}`}</div>
+                  <div className="text-xs text-slate-500">{l.source}{l.kind !== "RECURRING" && ` · cuota ${l.number}/${l.count}`}
+                    {l.estimated && <span className="text-amber-600" title="Consumo en USD: usa la cotización estimada hasta que se cargue la del resumen"> · estimado</span>}</div>
                 </div>
                 <span className="shrink-0 tabular-nums">{formatMoney(l.amount)}</span>
                 {l.kind !== "CHARGE" && <span className="w-8 shrink-0" aria-hidden />}

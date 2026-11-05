@@ -10,6 +10,7 @@ import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
 import { buildStatement, resolveFirstMonth } from "./statement.js";
+import { resolveUsdEstimate } from "../fx/service.js";
 
 const dto = (c: CreditCard): CardDto => ({
   id: c.id, name: c.name, closingDay: c.closingDay, dueDay: c.dueDay, stampTaxRate: num(c.stampTaxRate),
@@ -51,6 +52,7 @@ export async function cardRoutes(app: FastifyInstance) {
       id: p.id, cardId: p.cardId, date: fromDbDate(p.date), description: p.description, categoryId: p.categoryId,
       totalAmount: num(p.totalAmount), installmentCount: p.installmentCount, firstStatementMonth: p.firstStatementMonth,
       lastStatementMonth: addMonths(p.firstStatementMonth, p.installmentCount - 1),
+      currency: p.currency, usdRateEstimate: p.usdRateEstimate == null ? null : num(p.usdRateEstimate),
       shares: p.shares.map((s) => ({ personId: s.personId, mode: s.mode, value: num(s.value) })),
       shared: !!p.sharedExpenseId,
     }));
@@ -69,6 +71,10 @@ export async function cardRoutes(app: FastifyInstance) {
     if (personIds.length !== body.shares.length) return reply.code(400).send({ error: "Persona repetida en el reparto" });
     if ((await prisma.person.count({ where: { id: { in: personIds } } })) !== personIds.length) return reply.code(400).send({ error: "Persona inexistente" });
 
+    // La cotización estimada es solo una ayuda hasta cargar la real; si no vino, se busca y, si no hay, se pide.
+    const usdRateEstimate = body.currency === "USD" ? (body.usdRateEstimate ?? (await resolveUsdEstimate(card.id))?.rate) : undefined;
+    if (body.currency === "USD" && usdRateEstimate == null) return reply.code(400).send({ error: "No pude obtener la cotización del dólar: ingresala a mano" });
+
     const first = body.firstStatementMonth ?? (await resolveFirstMonth(card, body.date));
     const amounts = splitInstallments(body.totalAmount, body.installmentCount);
     const months = installmentMonths(first, body.installmentCount);
@@ -76,6 +82,7 @@ export async function cardRoutes(app: FastifyInstance) {
       data: {
         cardId: card.id, date: toDbDate(body.date), description: body.description, categoryId: body.categoryId ?? null,
         totalAmount: body.totalAmount, installmentCount: body.installmentCount, firstStatementMonth: first,
+        currency: body.currency, usdRateEstimate: usdRateEstimate ?? null,
         installments: { create: amounts.map((c, i) => ({ number: i + 1, month: months[i]!, amount: fromCents(c) })) },
         shares: { create: body.shares },
       },
@@ -116,6 +123,10 @@ export async function cardRoutes(app: FastifyInstance) {
     const body = parse(statementPatch, req.body, reply);
     if (!body) return;
     if (!(await prisma.creditCard.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Tarjeta no encontrada" });
+    // Con el resumen pagado, lo que cambia el total ya no se toca: el movimiento salió por ese importe.
+    const current = await prisma.cardStatement.findUnique({ where: { cardId_month: { cardId: req.params.id, month: body.month } }, select: { paidAt: true } });
+    if (current?.paidAt && (body.adjustment !== undefined || body.usdRate !== undefined))
+      return reply.code(409).send({ error: "El resumen ya está pagado: deshacé el pago para cambiar la cotización o el ajuste" });
     const { month, closingDate, dueDate, ...amounts } = body;
     const fields = {
       ...amounts,
@@ -138,6 +149,7 @@ export async function cardRoutes(app: FastifyInstance) {
     const st = await buildStatement(card.id, body.month);
     if (!st) return reply.code(404).send({ error: "Tarjeta no encontrada" });
     if (st.paidAt) return reply.code(409).send({ error: "El resumen ya está pagado" });
+    if (st.usdSubtotal > 0 && st.usdRate == null) return reply.code(400).send({ error: "Cargá la cotización del dólar del resumen antes de pagarlo" });
     if (st.total <= 0) return reply.code(400).send({ error: "El resumen no tiene importe para pagar" });
     const accountId = body.accountId ?? card.payAccountId;
     if (!accountId || !(await prisma.account.findUnique({ where: { id: accountId } }))) return reply.code(400).send({ error: "Elegí la cuenta desde la que se paga" });

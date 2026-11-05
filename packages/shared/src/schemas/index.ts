@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Currency } from "../domain/cardStatement.js";
 
 export const yearMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -93,6 +94,7 @@ export const shareInput = z.object({
   mode: shareMode,
   value: z.number().positive(),
 });
+export const currency = z.enum(["ARS", "USD"]);
 export const purchaseInput = z
   .object({
     cardId: z.string().min(1),
@@ -103,16 +105,27 @@ export const purchaseInput = z
     installmentCount: z.number().int().min(1).max(60).default(1),
     firstStatementMonth: yearMonth.optional(),
     shares: z.array(shareInput).default([]),
+    /** Con USD, `totalAmount` va en dólares y se convierte en el resumen. */
+    currency: currency.default("ARS"),
+    /** Cotización oficial al cargar; si falta en una compra USD, el servidor la resuelve (API o último resumen). */
+    usdRateEstimate: z.number().finite().positive().optional(),
   })
   .refine((p) => p.shares.every((s) => s.mode !== "PERCENT" || s.value <= 100), { message: "Un porcentaje no puede superar 100", path: ["shares"] })
   .refine(
     (p) => p.shares.filter((s) => s.mode === "PERCENT").reduce((a, s) => a + s.value, 0) <= 100,
     { message: "Los porcentajes repartidos superan 100", path: ["shares"] },
+  )
+  .refine((p) => p.currency !== "USD" || p.installmentCount === 1, { message: "Las compras en USD son en un solo pago", path: ["installmentCount"] })
+  .refine(
+    (p) => p.currency !== "USD" || p.shares.length === 0 || (p.shares.length === 1 && p.shares[0]!.mode === "PERCENT" && p.shares[0]!.value === 100),
+    { message: "Una compra en USD es mía o de una sola persona al 100%", path: ["shares"] },
   );
 export const statementQuery = z.object({ month: yearMonth });
 export const statementPatch = z.object({
   month: yearMonth,
   adjustment: z.number().finite().optional(),
+  /** Cotización real del resumen (la del PDF del banco); null la borra. */
+  usdRate: z.number().finite().positive().nullable().optional(),
   refunds: z.number().finite().min(0).optional(),
   /** null vuelve al día por defecto de la tarjeta */
   closingDate: isoDate.nullable().optional(),
@@ -125,21 +138,33 @@ export type CardInput = z.infer<typeof cardInput>;
 export type PurchaseInput = z.infer<typeof purchaseInput>;
 
 export interface CardDto { id: string; name: string; closingDay: number; dueDay: number; stampTaxRate: number; isThirdParty: boolean; payAccountId: string | null }
+/** Cotización sugerida para una compra USD: de la API, del último resumen de la tarjeta o ninguna (se carga a mano). */
+export interface FxQuoteDto { rate: number | null; source: "api" | "statement" | null; asOf: string | null }
 export interface PersonDto { id: string; name: string }
 export interface PurchaseDto {
   id: string; cardId: string; date: string; description: string; categoryId: string | null; totalAmount: number;
   installmentCount: number; firstStatementMonth: string; lastStatementMonth: string;
+  /** totalAmount está en esta moneda; usdRateEstimate solo existe en compras USD. */
+  currency: Currency; usdRateEstimate: number | null;
   shares: { personId: string; mode: "PERCENT" | "AMOUNT"; value: number }[];
   /** Generada desde un gasto compartido: se edita desde Compartidos. */
   shared: boolean;
 }
 export interface StatementItemDto {
-  installmentId: string; purchaseId: string; description: string; number: number; count: number; amount: number;
+  installmentId: string; purchaseId: string; description: string; number: number; count: number;
+  /** Siempre en pesos (convertido si la compra es USD). */
+  amount: number;
+  /** Monto original y cotización aplicada; solo en compras USD. */
+  usdAmount: number | null; rate: number | null;
   thirdParty: number; shares: { personId: string; name: string; amount: number }[];
 }
 export interface StatementDto {
   cardId: string; month: string; items: StatementItemDto[];
   subtotal: number; stampTax: number; adjustment: number; total: number;
+  /** Consumos USD del resumen: dólares, su equivalente en pesos y la cotización real (null hasta cargarla). */
+  usdSubtotal: number; usdSubtotalArs: number; usdRate: number | null;
+  /** true si hay consumos USD y todavía no hay cotización real: los pesos son una estimación. */
+  usdEstimated: boolean;
   thirdParty: number; refunds: number; netOwn: number;
   byPerson: { personId: string; name: string; amount: number }[];
   paidAt: string | null;
@@ -168,7 +193,11 @@ export interface PersonSummaryDto {
   accrued: number; paid: number; /** accrued − paid: lo que te debe hasta el mes consultado */ balance: number;
   upcoming: number; /** cuotas de meses posteriores */
 }
-export interface PersonLineDto { kind: "CARD" | "CHARGE" | "RECURRING"; refId: string; description: string; source: string; number: number; count: number; amount: number }
+export interface PersonLineDto {
+  kind: "CARD" | "CHARGE" | "RECURRING"; refId: string; description: string; source: string; number: number; count: number; amount: number;
+  /** Consumo en USD cuyo monto en pesos todavía usa la cotización estimada. */
+  estimated?: boolean;
+}
 export interface PersonMonthDto { month: string; total: number; lines: PersonLineDto[] }
 export interface PersonPaymentDto { id: string; date: string; amount: number; note: string; accountId: string | null }
 export interface PersonDetailDto extends PersonSummaryDto { months: PersonMonthDto[]; payments: PersonPaymentDto[] }

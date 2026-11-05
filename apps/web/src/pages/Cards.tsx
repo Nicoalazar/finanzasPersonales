@@ -3,7 +3,7 @@ import type { CardDto, StatementDto } from "@finanzas/shared";
 import { PurchaseForm } from "../components/PurchaseForm";
 import { MonthNav } from "../components/MonthNav";
 import { iconBtn, iconBtnDanger } from "../components/Stats";
-import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
+import { currentMonth, formatMoney, formatRate, formatUsd, monthLabel, shiftMonth } from "../lib/format";
 import {
   useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
 } from "../lib/queries";
@@ -46,10 +46,12 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
   const move = useMovePurchase();
   const [adjustment, setAdjustment] = useState(String(st.adjustment));
   const [refunds, setRefunds] = useState(String(st.refunds));
+  const [usdRate, setUsdRate] = useState(st.usdRate == null ? "" : String(st.usdRate));
   const [accountId, setAccountId] = useState(card.payAccountId ?? "");
   const [payDate, setPayDate] = useState(st.dueDate);
   const [error, setError] = useState("");
   useEffect(() => { setAdjustment(String(st.adjustment)); setRefunds(String(st.refunds)); }, [st.adjustment, st.refunds]);
+  useEffect(() => setUsdRate(st.usdRate == null ? "" : String(st.usdRate)), [st.usdRate]);
   useEffect(() => setPayDate(st.dueDate), [st.dueDate]);
 
   const guard = async (fn: () => Promise<unknown>) => {
@@ -82,7 +84,7 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
             </div>
             <div className="flex items-center gap-1">
               <div className="min-w-0 flex-1 text-xs text-slate-500">
-                Cuota {i.number}/{i.count}
+                {i.usdAmount != null ? `${formatUsd(i.usdAmount)} × ${formatRate(i.rate!)}${st.usdEstimated ? " (estimada)" : ""}` : `Cuota ${i.number}/${i.count}`}
                 {i.shares.map((s) => ` · ${s.name} ${formatMoney(s.amount)}`).join("")}
               </div>
               {[-1, 1].map((d) => (
@@ -101,6 +103,29 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
 
       <div className="divide-y rounded-xl bg-white shadow">
         <div className={row}><span>Subtotal</span><span>{formatMoney(st.subtotal)}</span></div>
+        {st.usdSubtotal > 0 && (
+          <>
+            <div className={row}>
+              <span>Consumos en USD <span className="text-xs text-slate-500">(incluidos en el subtotal)</span></span>
+              <span>{formatUsd(st.usdSubtotal)} ≈ {formatMoney(st.usdSubtotalArs)}</span>
+            </div>
+            <div className={`${row} items-center`}>
+              <label htmlFor="usdRate">
+                Cotización del dólar del resumen
+                {st.usdEstimated && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">estimada</span>}
+              </label>
+              <NumberInput id="usdRate" className={`${field} w-28 shrink-0 text-right sm:w-32`} placeholder="la del banco" value={usdRate} disabled={!!st.paidAt}
+                onChange={setUsdRate}
+                onBlur={() => {
+                  const v = parseNum(usdRate);
+                  if ((v || null) !== st.usdRate) guard(() => patch.mutateAsync({ month, usdRate: v > 0 ? v : null }));
+                }} />
+            </div>
+            {st.usdEstimated && (
+              <p className="px-4 py-1.5 text-xs text-amber-700">Cada consumo usa la cotización estimada al cargarlo. Cargá la del resumen del banco para fijar el total y poder pagarlo.</p>
+            )}
+          </>
+        )}
         <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰</span><span>{formatMoney(st.stampTax)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
@@ -119,7 +144,7 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
 
       {st.byPerson.length > 0 && (
         <div className="rounded-xl bg-white p-4 text-sm shadow">
-          <div className="mb-1 text-xs font-medium text-slate-500">Te deben este resumen</div>
+          <div className="mb-1 text-xs font-medium text-slate-500">Te deben este resumen{st.usdEstimated && " · incluye consumos en USD estimados"}</div>
           {st.byPerson.map((p) => <div key={p.personId} className="flex justify-between"><span>{p.name}</span><span>{formatMoney(p.amount)}</span></div>)}
         </div>
       )}
@@ -137,10 +162,11 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
             <input className={`${field} flex-1 sm:flex-none`} type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-            <button className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white sm:w-auto" disabled={st.total <= 0 || pay.isPending}
+            <button className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50 sm:w-auto" disabled={st.total <= 0 || pay.isPending || st.usdEstimated}
               onClick={() => guard(() => pay.mutateAsync({ month, date: payDate, accountId: accountId || undefined }))}>
               Pagar {formatMoney(st.total)}
             </button>
+            {st.usdEstimated && <span className="text-xs text-amber-700">Cargá la cotización del dólar para poder pagar</span>}
           </>
         )}
         {error && <span className="text-sm text-red-600">{error}</span>}
