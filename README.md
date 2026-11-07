@@ -28,6 +28,10 @@ cd apps/api && pnpm exec prisma migrate deploy && cd ../..
 pnpm dev                          # API :3000 + web :5173
 ```
 
+Para desarrollar contra un branch de Neon en vez del docker, poné en `.env` la URL directa de ese branch
+(`neon connection-string <branch> --project-id <id>`) como `DATABASE_URL`. `pnpm dev` lee el `.env` de la raíz.
+Los tests siguen usando el Postgres local (`TEST_DATABASE_URL`), porque vacían la base.
+
 Tests (usan la base `finanzas_test` del mismo Postgres, que se crea y migra sola):
 ```bash
 pnpm test        # dominio (vitest) + API contra Postgres real
