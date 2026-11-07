@@ -5,7 +5,7 @@ import { formatMoney, formatRate, formatUsd, monthLabel, today } from "../lib/fo
 import { useCategories, useCreatePerson, useCreatePurchase, useFirstMonth, useFxUsd, usePersons } from "../lib/queries";
 import { NumberInput } from "./NumberInput";
 
-const box = "rounded border bg-white px-2 py-1.5 text-sm";
+const box = "field";
 const field = `w-full ${box}`;
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
 interface ShareRow { personId: string; mode: "PERCENT" | "AMOUNT"; value: string }
@@ -82,7 +82,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
     : "no pude obtener la cotización: ingresala a mano";
 
   return (
-    <form onSubmit={submit} className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow sm:grid-cols-4">
+    <form onSubmit={submit} className="card grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
       <input className={`${field} col-span-2`} placeholder="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} required />
       <input className={field} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       <select className={field} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
@@ -102,18 +102,18 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
           onChange={(v) => { setRate(v); setRateTouched(true); }} required />
       )}
       {isUsd ? (
-        <p className="col-span-2 self-center text-xs text-slate-500 sm:col-span-4">
+        <p className="col-span-2 self-center text-xs text-muted sm:col-span-4">
           {formatUsd(total)}{rateNum > 0 && <> × {formatRate(rateNum)} ≈ <strong>{formatMoney(total * rateNum)}</strong></>} · cotización estimada ({rateSource}) ·
           va al resumen de {first ? monthLabel(first) : "…"}. Al llegar el resumen cargá la cotización real del banco.
         </p>
       ) : (
-        <p className="col-span-2 self-center text-xs text-slate-500">
+        <p className="col-span-2 self-center text-xs text-muted">
           {n} cuota{n > 1 ? "s" : ""} de {formatMoney(cuota)} · primera en el resumen de {first ? monthLabel(first) : "…"}
         </p>
       )}
 
       <div className="col-span-2 space-y-2 sm:col-span-4">
-        <div className="text-xs font-medium text-slate-500">
+        <div className="text-xs font-medium text-muted">
           {isUsd ? "Es de un tercero (opcional, la compra completa)" : "Parte de terceros (opcional)"}
         </div>
         {shares.map((s, i) => (
@@ -123,7 +123,7 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
               {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {isUsd ? (
-              <span className="flex w-40 items-center text-sm text-slate-500">100% de la compra</span>
+              <span className="flex w-40 items-center text-sm text-muted">100% de la compra</span>
             ) : (
               <>
                 <select className={`${field} w-32`} value={s.mode} onChange={(e) => setShare(i, { mode: e.target.value as ShareRow["mode"] })}>
@@ -132,22 +132,22 @@ export function PurchaseForm({ card, onDone }: { card: CardDto; onDone: () => vo
                 <NumberInput className={`${field} w-28`} value={s.value} onChange={(v) => setShare(i, { value: v })} required />
               </>
             )}
-            <button type="button" className="px-2 text-slate-400 hover:text-rose-600" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
+            <button type="button" className="px-2 text-faint hover:text-neg" aria-label="Quitar" onClick={() => setShares(shares.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}
         {!soloOne && (
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={() => setShares([...shares, { personId: "", mode: "PERCENT", value: isUsd ? "100" : "50" }])}>+ Persona</button>
+            <button type="button" className="btn-soft py-1" onClick={() => setShares([...shares, { personId: "", mode: "PERCENT", value: isUsd ? "100" : "50" }])}>+ Persona</button>
             <input className={`${field} w-40`} placeholder="Nueva persona" value={newPerson} onChange={(e) => setNewPerson(e.target.value)} />
-            <button type="button" className="rounded bg-slate-100 px-3 py-1 text-sm" onClick={addPerson}>Crear</button>
+            <button type="button" className="btn-soft py-1" onClick={addPerson}>Crear</button>
           </div>
         )}
       </div>
 
-      {error && <p className="col-span-2 text-sm text-red-600 sm:col-span-4">{error}</p>}
+      {error && <p role="alert" className="col-span-2 text-sm text-neg sm:col-span-4">{error}</p>}
       <div className="col-span-2 flex gap-2 sm:col-span-4">
-        <button className="rounded bg-slate-900 px-4 py-1.5 text-sm text-white" disabled={create.isPending}>Guardar compra</button>
-        <button type="button" className="text-sm text-slate-500" onClick={onDone}>Cancelar</button>
+        <button className="btn-primary px-4" disabled={create.isPending}>{create.isPending ? "Guardando…" : "Guardar compra"}</button>
+        <button type="button" className="text-sm text-muted" onClick={onDone}>Cancelar</button>
       </div>
     </form>
   );

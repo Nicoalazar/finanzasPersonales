@@ -3,7 +3,7 @@ import { formatMoney } from "../lib/format";
 import { useAccounts, useCategories, useCreateAccount, useCreateCategory, useDeleteCategory } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
-const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field";
 
 export function Settings() {
   const accounts = useAccounts().data ?? [];
@@ -23,14 +23,14 @@ export function Settings() {
 
   return (
     <main className="grid gap-6 md:grid-cols-2">
-      {error && <p className="col-span-full rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
+      {error && <p role="alert" className="col-span-full rounded bg-neg-soft p-2 text-sm text-neg">{error}</p>}
       <section className="min-w-0 space-y-3">
         <h2 className="font-semibold">Cuentas</h2>
-        <ul className="divide-y rounded-xl bg-white shadow">
+        <ul className="card divide-y">
           {accounts.map((a) => (
-            <li key={a.id} className="flex justify-between gap-3 px-4 py-2 text-sm"><span className="truncate">{a.name}</span><span className="shrink-0 tabular-nums text-slate-600">{formatMoney(a.balance)}</span></li>
+            <li key={a.id} className="flex justify-between gap-3 px-4 py-2 text-sm"><span className="truncate">{a.name}</span><span className="shrink-0 tabular-nums text-muted">{formatMoney(a.balance)}</span></li>
           ))}
-          {accounts.length === 0 && <li className="p-4 text-sm text-slate-500">Todavía no hay cuentas.</li>}
+          {accounts.length === 0 && <li className="p-4 text-sm text-muted">Todavía no hay cuentas.</li>}
         </ul>
         <form className="flex flex-wrap gap-2" onSubmit={run(async () => { await createAccount.mutateAsync({ ...acc, initialBalance: Number(acc.initialBalance.replace(",", ".")) || 0 }); setAcc({ ...acc, name: "" }); })}>
           <input className={`${field} w-full sm:w-auto sm:flex-1`} placeholder="Nombre (ej. Brubank)" value={acc.name} onChange={(e) => setAcc({ ...acc, name: e.target.value })} required />
@@ -38,7 +38,7 @@ export function Settings() {
             <option value="BANK">Banco</option><option value="WALLET">Billetera</option><option value="CASH">Efectivo</option><option value="INVESTMENT">Inversión</option>
           </select>
           <NumberInput className={`${field} w-28 flex-1 sm:flex-none`} placeholder="Saldo inicial" aria-label="Saldo inicial" value={acc.initialBalance} onChange={(v) => setAcc({ ...acc, initialBalance: v })} />
-          <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Agregar</button>
+          <button className="btn-primary">Agregar</button>
         </form>
       </section>
 
@@ -46,12 +46,12 @@ export function Settings() {
         <h2 className="font-semibold">Categorías</h2>
         {(["EXPENSE", "INCOME"] as const).map((type) => (
           <div key={type}>
-            <h3 className="mb-1 text-xs uppercase text-slate-500">{type === "EXPENSE" ? "Gastos" : "Ingresos"}</h3>
+            <h3 className="mb-1 text-xs uppercase text-muted">{type === "EXPENSE" ? "Gastos" : "Ingresos"}</h3>
             <div className="flex flex-wrap gap-1.5">
               {categories.filter((c) => c.type === type).map((c) => (
-                <span key={c.id} className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm shadow">
+                <span key={c.id} className="btn-soft rounded-full py-1">
                   {c.name}
-                  <button className="text-slate-400 hover:text-rose-600" aria-label={`Eliminar ${c.name}`} onClick={run(() => deleteCategory.mutateAsync(c.id))}>×</button>
+                  <button className="text-faint hover:text-neg" aria-label={`Eliminar ${c.name}`} onClick={run(() => deleteCategory.mutateAsync(c.id))}>×</button>
                 </span>
               ))}
             </div>
@@ -62,7 +62,7 @@ export function Settings() {
           <select className={field} value={cat.type} onChange={(e) => setCat({ ...cat, type: e.target.value })}>
             <option value="EXPENSE">Gasto</option><option value="INCOME">Ingreso</option>
           </select>
-          <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Agregar</button>
+          <button className="btn-primary">Agregar</button>
         </form>
       </section>
     </main>

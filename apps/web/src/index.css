@@ -1,35 +1,191 @@
 @import "tailwindcss";
 
-body { @apply bg-slate-50 text-slate-900 antialiased; }
+/* ───────────────────────────────────────────────────────────────
+   Sistema de color.
+   Todo texto de color sobre `surface` pasa AA (≥ 4.5:1); los
+   íconos y bordes, el mínimo de 3:1 para elementos de interfaz.
+   El contraste va anotado para que no se degrade al retocarlo.
+   ─────────────────────────────────────────────────────────────── */
+@theme {
+  /* Superficies y texto */
+  --color-canvas: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-ink: #101828;
+  --color-muted: #5b6675;        /* 5.8:1 — etiquetas y texto secundario */
+  --color-faint: #7a8698;        /* 3.7:1 — sólo íconos, nunca texto */
+  --color-line: #e4e8ee;
+  --color-line-strong: #848fa2;  /* 3.3:1 — borde de los campos: WCAG 1.4.11 pide 3:1
+                                    para el contorno de un control */
 
-/* Tailwind v4 deja los botones con cursor por defecto */
-button:not(:disabled), [role="button"]:not([aria-disabled="true"]), select:not(:disabled), summary, input[type="checkbox"], input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
+  /* Semántica del dinero: el color es dato, así que tiene que leerse */
+  --color-pos: #047857;          /* 5.6:1 — ingresos, saldo a favor */
+  --color-pos-soft: #e9f8f1;
+  --color-pos-ink: #05543e;      /* sobre pos-soft */
+  --color-neg: #be123c;          /* 6.2:1 — gastos, saldo en contra */
+  --color-neg-soft: #fdecef;
+  --color-neg-ink: #9f1239;
+  --color-warn: #b45309;         /* 5.0:1 — avisos, pendientes */
+  --color-warn-soft: #fff7e6;
+  --color-warn-ink: #7c3c07;
+  --color-accent: #1d62b4;       /* 6.1:1 — enlaces y anillo de foco */
+  --color-accent-soft: #eaf2fc;
+
+  /* Acciones primarias */
+  --color-primary: #101828;
+  --color-primary-hover: #1d2939;
+
+  /* `rounded` y `shadow` sin sufijo son la base de toda la app:
+     ajustarlos acá cambia las ~130 superficies de una sola vez. */
+  --radius: 0.5rem;
+  --shadow: 0 1px 2px 0 rgb(16 24 40 / 0.04), 0 1px 3px 0 rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 4px 6px -2px rgb(16 24 40 / 0.05), 0 12px 16px -4px rgb(16 24 40 / 0.1);
 }
-button:disabled { cursor: not-allowed; opacity: 0.6; }
 
-/* Paleta categórica validada (azul, naranja, aqua) para los gráficos */
+/* Paleta categórica validada (azul, naranja, verde) para los gráficos */
 :root {
   --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
+  --series-2: #d4571f;
+  --series-3: #1a9e6e;
   --chart-ink: #334155;
-  --chart-grid: #e2e8f0;
-  --chart-surface: #ffffff;
+  --chart-grid: var(--color-line);
+  --chart-axis: var(--color-muted);
+  --chart-band: #eef1f6;
+  --chart-zero: var(--color-line-strong);
+  --chart-surface: var(--color-surface);
 }
 
-/* Tailwind v4 usa currentColor como color de borde por defecto: los divisores quedaban negros. */
 @layer base {
-  *, ::after, ::before, ::backdrop, ::file-selector-button { border-color: var(--color-slate-200); }
-  input, select, textarea { border-color: var(--color-slate-300); min-width: 0; }
-  html { -webkit-text-size-adjust: 100%; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+  }
+
+  /* Tailwind v4 usa currentColor como color de borde por defecto:
+     los divisores quedaban negros. */
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--color-line);
+  }
+
+  input, select, textarea {
+    border-color: var(--color-line-strong);
+    min-width: 0;
+  }
+
+  /* El select nativo necesita fondo y color propios o hereda los del sistema */
+  select {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  /* Un único foco visible para toda la app, con el radio del elemento */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  /* Al hacer clic el navegador no debería dejar el anillo del teclado */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  h1, h2, h3 { text-wrap: balance; }
+
+  /* Sin retardo de 300 ms ni destello gris al tocar */
+  button, [role="button"], a, label, select, summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tailwind v4 deja los botones con cursor por defecto */
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]), select:not(:disabled), summary,
+  input[type="checkbox"], input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+  button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+  /* Las casillas usan el color de la marca en lugar del azul del sistema */
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--color-accent); }
+
+  /* Sólo color y sombra: nada que la componga el layout */
+  @media (prefers-reduced-motion: no-preference) {
+    a, button, [role="button"], summary, input, select, textarea, .card, .seg-off, .btn-soft {
+      transition-property: color, background-color, border-color, box-shadow, text-decoration-color, opacity;
+      transition-duration: 140ms;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
+  /* En el celular: iOS hace zoom al enfocar campos con letra menor a 16px. */
+  @media (max-width: 639px) {
+    input, select, textarea { font-size: 16px !important; }
+  }
 }
 
-/* En el celular: iOS hace zoom al enfocar campos con letra menor a 16px. */
-@media (max-width: 639px) {
-  input, select, textarea { font-size: 16px !important; }
+@layer components {
+  /* Superficie elevada. El filo de 1 px es lo que la despega del fondo:
+     con sombra sola, sobre `canvas`, el borde queda sucio. */
+  .card {
+    @apply rounded-xl border border-line bg-surface shadow;
+  }
+
+  /* Campo de formulario */
+  .field {
+    @apply rounded border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-ink;
+  }
+  .field::placeholder { color: var(--color-faint); }
+  .field:hover:not(:disabled):not(:focus) { border-color: var(--color-muted); }
+  .field:disabled { @apply bg-canvas text-muted; }
+
+  /* Botones. `btn` sólo aporta forma; el color lo pone la variante. */
+  .btn {
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium;
+  }
+  .btn-primary {
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium text-white;
+    background-color: var(--color-primary);
+  }
+  .btn-primary:hover:not(:disabled) { background-color: var(--color-primary-hover); }
+
+  .btn-soft {
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow;
+  }
+  .btn-soft:hover:not(:disabled) { @apply bg-canvas; }
+
+  .btn-ghost {
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium text-muted;
+  }
+  .btn-ghost:hover:not(:disabled) { @apply bg-accent-soft text-accent; }
+
+  /* Enlace de texto: el subrayado tenue se afirma al pasar el mouse */
+  .link {
+    @apply text-accent underline underline-offset-2;
+    text-decoration-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+  .link:hover { text-decoration-color: var(--color-accent); }
+
+  /* Control segmentado: Gasto/Ingreso/Transferencia, tarjetas, trabajos… */
+  .seg {
+    @apply shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium;
+  }
+  .seg-on {
+    @apply shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium text-white;
+    background-color: var(--color-primary);
+  }
+  .seg-off {
+    @apply shrink-0 whitespace-nowrap rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-muted;
+  }
+  .seg-off:hover { @apply bg-canvas text-ink; }
+
+  /* Etiquetas de estado */
+  .tag {
+    @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium;
+  }
 }
 
-/* Barra de navegación desplazable sin scrollbar visible */
-.no-scrollbar { scrollbar-width: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}

@@ -9,7 +9,7 @@ import {
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
-const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
 const FREQ = { MONTHLY: "Mensual", BIMONTHLY: "Bimestral", YEARLY: "Anual" } as const;
 
@@ -34,15 +34,15 @@ function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
   const save = () => parseNum(value) !== group.percent && guard(() => set.mutateAsync({ id: group.id, month, percent: parseNum(value) }))();
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow">
+    <div className="card flex flex-wrap items-center gap-3 p-4">
       <div className="min-w-32 flex-1">
         <div className="font-medium">{group.name}</div>
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted">
           {group.percentIsOwn ? `Valor propio de ${monthLabel(month)}` : `Heredado (último valor cargado o base ${group.myPercent}%)`}
         </div>
-        <label className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+        <label className="mt-1 flex items-center gap-1 text-xs text-muted">
           Se comparte con
-          <select className="rounded border bg-white px-1 py-0.5 text-xs" value={group.personId ?? ""} aria-label={`Persona de ${group.name}`} disabled={patch.isPending}
+          <select className="field px-1.5 py-0.5 text-xs" value={group.personId ?? ""} aria-label={`Persona de ${group.name}`} disabled={patch.isPending}
             onChange={(e) => guard(() => patch.mutateAsync({ id: group.id, patch: { personId: e.target.value || null } }))()}>
             <option value="">Nadie (cada uno paga lo suyo)</option>
             {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -56,9 +56,9 @@ function GroupCard({ group, month }: { group: SharedGroupDto; month: string }) {
         %
       </label>
       {group.percentIsOwn && (
-        <button className="text-xs text-slate-500 underline" onClick={guard(() => clear.mutateAsync({ id: group.id, month }))}>Quitar valor de este mes</button>
+        <button className="link text-xs" onClick={guard(() => clear.mutateAsync({ id: group.id, month }))}>Quitar valor de este mes</button>
       )}
-      {error && <span className="w-full text-sm text-red-600">{error}</span>}
+      {error && <span role="alert" className="w-full text-sm text-neg">{error}</span>}
     </div>
   );
 }
@@ -82,26 +82,26 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
   };
 
   return (
-    <div className={`rounded-xl bg-white p-4 shadow ${r.occursThisMonth ? "" : "opacity-60"}`}>
+    <div className={`card p-4 ${r.occursThisMonth ? "" : "opacity-60"}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <div className="min-w-32 flex-1">
           <div className="font-medium">{r.name}</div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted">
             {FREQ[r.frequency]} · desde {monthLabel(r.startMonth)}{r.endMonth && ` hasta ${monthLabel(r.endMonth)}`}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <label className="flex items-center gap-1 text-xs text-slate-500">
+            <label className="flex items-center gap-1 text-xs text-muted">
               Cuenta
-              <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
+              <select className="field px-1.5 py-0.5 text-xs" value={r.accountId ?? ""} aria-label={`Cuenta de ${r.name}`} disabled={patch.isPending}
                 onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ id: r.id, patch: { accountId: e.target.value } }))()}>
                 {!r.accountId && <option value="">Sin cuenta</option>}
                 {accounts.filter((a) => !a.archived || a.id === r.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? " (archivada)" : ""}</option>)}
               </select>
             </label>
             {groups.length > 0 && (
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-muted">
                 Grupo
-                <select className="rounded border bg-white px-1 py-0.5 text-xs" value={r.sharedGroupId ?? ""} aria-label={`Grupo de ${r.name}`} disabled={patch.isPending}
+                <select className="field px-1.5 py-0.5 text-xs" value={r.sharedGroupId ?? ""} aria-label={`Grupo de ${r.name}`} disabled={patch.isPending}
                   onChange={(e) => guard(() => patch.mutateAsync({ id: r.id, patch: { sharedGroupId: e.target.value || null } }))()}>
                   <option value="">Ninguno (todo mío)</option>
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -114,13 +114,13 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
           {r.occursThisMonth ? (
             <>
               <div className="font-semibold">{formatMoney(r.myAmount)}</div>
-              {group && r.owedAmount > 0 && <div className="text-xs text-slate-500">{personName ?? "Te"} {personName ? "te debe" : "debe"} {formatMoney(r.owedAmount)} ({100 - (r.groupPercent ?? 0)}% de {formatMoney(r.price)})</div>}
-              {group && r.owedAmount === 0 && <div className="text-xs text-slate-500">{r.groupPercent}% de {formatMoney(r.price)}</div>}
+              {group && r.owedAmount > 0 && <div className="text-xs text-muted">{personName ?? "Te"} {personName ? "te debe" : "debe"} {formatMoney(r.owedAmount)} ({100 - (r.groupPercent ?? 0)}% de {formatMoney(r.price)})</div>}
+              {group && r.owedAmount === 0 && <div className="text-xs text-muted">{r.groupPercent}% de {formatMoney(r.price)}</div>}
             </>
-          ) : <span className="text-xs text-slate-500">No corresponde este mes</span>}
+          ) : <span className="text-xs text-muted">No corresponde este mes</span>}
         </div>
-        <button className="rounded bg-slate-100 px-2 py-1 text-xs" onClick={() => { setEditing(!editing); setAmount(String(r.price)); setPct(""); }}>Cambiar precio</button>
-        {!r.endMonth && <button className="rounded bg-slate-100 px-2 py-1 text-xs" title={`Termina en ${monthLabel(shiftMonth(month, -1))}`}
+        <button className="btn-soft px-2 py-1 text-xs" onClick={() => { setEditing(!editing); setAmount(String(r.price)); setPct(""); }}>Cambiar precio</button>
+        {!r.endMonth && <button className="btn-soft px-2 py-1 text-xs" title={`Termina en ${monthLabel(shiftMonth(month, -1))}`}
           onClick={() => confirm(`¿Finalizar "${r.name}"? Deja de generarse desde ${monthLabel(month)}.`) && guard(() => patch.mutateAsync({ id: r.id, patch: { endMonth: shiftMonth(month, -1) } }))()}>Finalizar</button>}
         <button className={iconBtnDanger} aria-label="Eliminar"
           onClick={() => confirm(`¿Eliminar "${r.name}"? Se borran sus pendientes; lo pagado se conserva.`) && guard(() => del.mutateAsync(r.id))()}>✕</button>
@@ -128,18 +128,18 @@ function RecurringRow({ r, month, groups }: { r: RecurringDto; month: string; gr
       {editing && (
         <form className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3 text-sm"
           onSubmit={guard(async () => { await setPrice.mutateAsync({ id: r.id, fromMonth: month, amount: parseNum(amount) }); setEditing(false); })}>
-          <span className="text-slate-500">Nuevo precio desde {monthLabel(month)}:</span>
+          <span className="text-muted">Nuevo precio desde {monthLabel(month)}:</span>
           <NumberInput className={`${field} w-32`} value={amount} onChange={setAmount} required />
-          <span className="text-slate-400">o aumento</span>
+          <span className="text-faint">o aumento</span>
           <NumberInput className={`${field} w-16`} placeholder="10" value={pct} onChange={setPct} onBlur={applyPct} />
-          <span className="text-slate-500">%</span>
-          <button className="rounded bg-slate-900 px-3 py-1.5 text-white">Guardar</button>
+          <span className="text-muted">%</span>
+          <button className="btn-primary">Guardar</button>
         </form>
       )}
       {r.prices.length > 1 && (
-        <div className="mt-2 text-xs text-slate-500">Historial: {r.prices.map((p) => `${p.fromMonth} ${formatMoney(p.amount)}`).join(" → ")}</div>
+        <div className="mt-2 text-xs text-muted">Historial: {r.prices.map((p) => `${p.fromMonth} ${formatMoney(p.amount)}`).join(" → ")}</div>
       )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-neg">{error}</p>}
     </div>
   );
 }
@@ -152,9 +152,9 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
   const [f, setF] = useState({ name: "", amount: "", frequency: "MONTHLY", dayOfMonth: "1", startMonth: month, accountId: "", categoryId: "", sharedGroupId: "" });
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
 
-  if (accounts.length === 0) return <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Primero creá una cuenta en Configuración.</p>;
+  if (accounts.length === 0) return <p className="rounded border border-warn/30 bg-warn-soft p-3 text-sm text-warn-ink">Primero creá una cuenta en Configuración.</p>;
   return (
-    <form className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow sm:grid-cols-4"
+    <form className="card grid grid-cols-2 gap-3 p-4 sm:grid-cols-4"
       onSubmit={guard(async () => {
         await create.mutateAsync({
           name: f.name, amount: parseNum(f.amount), frequency: f.frequency, dayOfMonth: Number(f.dayOfMonth) || 1, startMonth: f.startMonth,
@@ -167,8 +167,8 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
       <select className={field} value={f.frequency} onChange={(e) => set({ frequency: e.target.value })}>
         {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
       </select>
-      <label className="text-xs text-slate-500">Empieza <input className={`${field} w-full`} type="month" value={f.startMonth} onChange={(e) => set({ startMonth: e.target.value })} required /></label>
-      <label className="text-xs text-slate-500">Día del mes <input className={`${field} w-full`} type="number" min={1} max={31} value={f.dayOfMonth} onChange={(e) => set({ dayOfMonth: e.target.value })} /></label>
+      <label className="text-xs text-muted">Empieza <input className={`${field} w-full`} type="month" value={f.startMonth} onChange={(e) => set({ startMonth: e.target.value })} required /></label>
+      <label className="text-xs text-muted">Día del mes <input className={`${field} w-full`} type="number" min={1} max={31} value={f.dayOfMonth} onChange={(e) => set({ dayOfMonth: e.target.value })} /></label>
       <select className={field} value={f.accountId || accounts[0]!.id} onChange={(e) => set({ accountId: e.target.value })} aria-label="Cuenta">
         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
@@ -180,10 +180,10 @@ function NewRecurringForm({ month, groups, onDone }: { month: string; groups: Sh
         <option value="">Todo mío</option>
         {groups.map((g) => <option key={g.id} value={g.id}>Compartido: {g.name}{g.personId ? " (pago el total y me devuelve su parte)" : " (pago solo mi %)"}</option>)}
       </select>
-      {error && <p className="col-span-2 text-sm text-red-600 sm:col-span-4">{error}</p>}
+      {error && <p role="alert" className="col-span-2 text-sm text-neg sm:col-span-4">{error}</p>}
       <div className="col-span-2 flex gap-2 sm:col-span-4">
-        <button className="rounded bg-slate-900 px-4 py-1.5 text-sm text-white">Guardar</button>
-        <button type="button" className="text-sm text-slate-500" onClick={onDone}>Cancelar</button>
+        <button className="btn-primary px-4">Guardar</button>
+        <button type="button" className="text-sm text-muted" onClick={onDone}>Cancelar</button>
       </div>
     </form>
   );
@@ -203,9 +203,9 @@ export function Recurring() {
   return (
     <main className="space-y-5">
       <MonthNav month={month} onChange={setMonth}>
-        {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Recurrente</button>}
+        {!adding && <button className="btn-primary" onClick={() => setAdding(true)}>+ Recurrente</button>}
       </MonthNav>
-      {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded bg-neg-soft p-2 text-sm text-neg">{error}</p>}
 
       <section className="space-y-2">
         <h2 className="font-semibold">Grupos compartidos</h2>
@@ -216,8 +216,8 @@ export function Recurring() {
             <option value="">Se comparte con: nadie</option>
             {persons.map((p) => <option key={p.id} value={p.id}>Se comparte con: {p.name}</option>)}
           </select>
-          <label className="text-xs text-slate-500">% base <NumberInput className={`${field} w-16`} value={newGroup.percent} onChange={(v) => setNewGroup({ ...newGroup, percent: v })} /></label>
-          <button className="rounded bg-white px-3 py-1.5 text-sm shadow">Crear grupo</button>
+          <label className="text-xs text-muted">% base <NumberInput className={`${field} w-16`} value={newGroup.percent} onChange={(v) => setNewGroup({ ...newGroup, percent: v })} /></label>
+          <button className="btn-soft">Crear grupo</button>
         </form>
       </section>
 
@@ -226,9 +226,9 @@ export function Recurring() {
       <section className="space-y-2">
         <div className="flex items-baseline justify-between">
           <h2 className="font-semibold">Recurrentes</h2>
-          {total > 0 && <span className="text-sm text-slate-600">Total del mes: <b>{formatMoney(total)}</b></span>}
+          {total > 0 && <span className="text-sm text-muted">Total del mes: <b>{formatMoney(total)}</b></span>}
         </div>
-        {recurring.length === 0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow">Todavía no hay gastos recurrentes (alquiler, servicios, suscripciones).</p>}
+        {recurring.length === 0 && <p className="card p-4 text-sm text-muted">Todavía no hay gastos recurrentes (alquiler, servicios, suscripciones).</p>}
         {recurring.map((r) => <RecurringRow key={r.id} r={r} month={month} groups={groups} />)}
       </section>
     </main>

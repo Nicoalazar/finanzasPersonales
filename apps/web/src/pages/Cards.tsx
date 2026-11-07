@@ -9,7 +9,7 @@ import {
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
-const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
 
 function NewCardForm({ onDone }: { onDone: () => void }) {
@@ -26,13 +26,13 @@ function NewCardForm({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow">
+    <form onSubmit={submit} className="card flex flex-wrap items-center gap-2 p-3">
       <input className={field} placeholder="Nombre (ej. Visa)" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required />
-      <label className="text-xs text-slate-500">Cierre <input className={`${field} w-16`} type="number" min={1} max={31} value={f.closingDay} onChange={(e) => setF({ ...f, closingDay: e.target.value })} /></label>
-      <label className="text-xs text-slate-500">Vence <input className={`${field} w-16`} type="number" min={1} max={31} value={f.dueDay} onChange={(e) => setF({ ...f, dueDay: e.target.value })} /></label>
-      <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Crear</button>
-      <button type="button" className="text-sm text-slate-500" onClick={onDone}>Cancelar</button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      <label className="text-xs text-muted">Cierre <input className={`${field} w-16`} type="number" min={1} max={31} value={f.closingDay} onChange={(e) => setF({ ...f, closingDay: e.target.value })} /></label>
+      <label className="text-xs text-muted">Vence <input className={`${field} w-16`} type="number" min={1} max={31} value={f.dueDay} onChange={(e) => setF({ ...f, dueDay: e.target.value })} /></label>
+      <button className="btn-primary">Crear</button>
+      <button type="button" className="text-sm text-muted" onClick={onDone}>Cancelar</button>
+      {error && <span role="alert" className="text-sm text-neg">{error}</span>}
     </form>
   );
 }
@@ -62,20 +62,20 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-white px-4 py-3 text-sm shadow">
+      <div className="card flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm">
         {([["closingDate", "Cierre", st.closingDate, st.closingIsCustom], ["dueDate", "Vencimiento", st.dueDate, st.dueIsCustom]] as const).map(([key, label, value, custom]) => (
           <label key={key} className="flex w-full items-center gap-2 sm:w-auto">
-            <span className="w-24 shrink-0 text-slate-500 sm:w-auto">{label}{custom && <span className="block text-[11px] sm:inline"> (editado)</span>}</span>
+            <span className="w-24 shrink-0 text-muted sm:w-auto">{label}{custom && <span className="block text-[11px] sm:inline"> (editado)</span>}</span>
             <input className={`${field} flex-1 sm:flex-none`} type="date" value={value} required
               onChange={(e) => e.target.value && guard(() => patch.mutateAsync({ month, [key]: e.target.value }))} />
-            {custom && <button className="text-xs text-slate-500 underline" onClick={() => guard(() => patch.mutateAsync({ month, [key]: null }))}>Restablecer</button>}
+            {custom && <button className="link text-xs" onClick={() => guard(() => patch.mutateAsync({ month, [key]: null }))}>Restablecer</button>}
           </label>
         ))}
-        <p className="w-full text-xs text-slate-500">Las fechas cambian mes a mes. Al editar el cierre, las compras ya cargadas no se mueven solas: usá ‹ › en cada una.</p>
+        <p className="w-full text-xs text-muted">Las fechas cambian mes a mes. Al editar el cierre, las compras ya cargadas no se mueven solas: usá ‹ › en cada una.</p>
       </div>
 
-      <div className="divide-y rounded-xl bg-white shadow">
-        {st.items.length === 0 && <p className="p-4 text-sm text-slate-500">No hay cuotas en este resumen.</p>}
+      <div className="card divide-y">
+        {st.items.length === 0 && <p className="p-4 text-sm text-muted">No hay cuotas en este resumen.</p>}
         {st.items.map((i) => (
           <div key={i.installmentId} className="py-2 pl-4 pr-2">
             <div className="flex items-baseline justify-between gap-2 pr-2">
@@ -83,7 +83,7 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
               <span className="shrink-0 text-sm font-medium tabular-nums">{formatMoney(i.amount)}</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="min-w-0 flex-1 text-xs text-slate-500">
+              <div className="min-w-0 flex-1 text-xs text-muted">
                 {i.usdAmount != null ? `${formatUsd(i.usdAmount)} × ${formatRate(i.rate!)}${st.usdEstimated ? " (estimada)" : ""}` : `Cuota ${i.number}/${i.count}`}
                 {i.shares.map((s) => ` · ${s.name} ${formatMoney(s.amount)}`).join("")}
               </div>
@@ -101,18 +101,18 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
         ))}
       </div>
 
-      <div className="divide-y rounded-xl bg-white shadow">
+      <div className="card divide-y">
         <div className={row}><span>Subtotal</span><span>{formatMoney(st.subtotal)}</span></div>
         {st.usdSubtotal > 0 && (
           <>
             <div className={row}>
-              <span>Consumos en USD <span className="text-xs text-slate-500">(incluidos en el subtotal)</span></span>
+              <span>Consumos en USD <span className="text-xs text-muted">(incluidos en el subtotal)</span></span>
               <span>{formatUsd(st.usdSubtotal)} ≈ {formatMoney(st.usdSubtotalArs)}</span>
             </div>
             <div className={`${row} items-center`}>
               <label htmlFor="usdRate">
                 Cotización del dólar del resumen
-                {st.usdEstimated && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">estimada</span>}
+                {st.usdEstimated && <span className="tag ml-2 bg-warn-soft text-warn-ink">estimada</span>}
               </label>
               <NumberInput id="usdRate" className={`${field} w-28 shrink-0 text-right sm:w-32`} placeholder="la del banco" value={usdRate} disabled={!!st.paidAt}
                 onChange={setUsdRate}
@@ -122,7 +122,7 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
                 }} />
             </div>
             {st.usdEstimated && (
-              <p className="px-4 py-1.5 text-xs text-amber-700">Cada consumo usa la cotización estimada al cargarlo. Cargá la del resumen del banco para fijar el total y poder pagarlo.</p>
+              <p className="px-4 py-1.5 text-xs text-warn">Cada consumo usa la cotización estimada al cargarlo. Cargá la del resumen del banco para fijar el total y poder pagarlo.</p>
             )}
           </>
         )}
@@ -139,21 +139,21 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
           <NumberInput id="ref" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={refunds} disabled={!!st.paidAt}
             onChange={setRefunds} onBlur={() => parseNum(refunds) !== st.refunds && guard(() => patch.mutateAsync({ month, refunds: parseNum(refunds) }))} />
         </div>
-        <div className={`${row} font-semibold text-rose-600`}><span>Neto propio</span><span>{formatMoney(st.netOwn)}</span></div>
+        <div className={`${row} font-semibold text-neg`}><span>Neto propio</span><span>{formatMoney(st.netOwn)}</span></div>
       </div>
 
       {st.byPerson.length > 0 && (
-        <div className="rounded-xl bg-white p-4 text-sm shadow">
-          <div className="mb-1 text-xs font-medium text-slate-500">Te deben este resumen{st.usdEstimated && " · incluye consumos en USD estimados"}</div>
+        <div className="card p-4 text-sm">
+          <div className="mb-1 text-xs font-medium text-muted">Te deben este resumen{st.usdEstimated && " · incluye consumos en USD estimados"}</div>
           {st.byPerson.map((p) => <div key={p.personId} className="flex justify-between"><span>{p.name}</span><span>{formatMoney(p.amount)}</span></div>)}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-4 shadow">
+      <div className="card flex flex-wrap items-center gap-2 p-4">
         {st.paidAt ? (
           <>
-            <span className="text-sm text-emerald-700">Pagado el {st.paidAt}</span>
-            <button className="text-sm text-slate-500 underline" onClick={() => confirm("¿Deshacer el pago? Se elimina el movimiento.") && guard(() => unpay.mutateAsync(month))}>Deshacer</button>
+            <span className="text-sm text-pos">Pagado el {st.paidAt}</span>
+            <button className="link text-sm" onClick={() => confirm("¿Deshacer el pago? Se elimina el movimiento.") && guard(() => unpay.mutateAsync(month))}>Deshacer</button>
           </>
         ) : (
           <>
@@ -162,14 +162,14 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
             <input className={`${field} flex-1 sm:flex-none`} type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-            <button className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50 sm:w-auto" disabled={st.total <= 0 || pay.isPending || st.usdEstimated}
+            <button className="btn-primary w-full sm:w-auto" disabled={st.total <= 0 || pay.isPending || st.usdEstimated}
               onClick={() => guard(() => pay.mutateAsync({ month, date: payDate, accountId: accountId || undefined }))}>
               Pagar {formatMoney(st.total)}
             </button>
-            {st.usdEstimated && <span className="text-xs text-amber-700">Cargá la cotización del dólar para poder pagar</span>}
+            {st.usdEstimated && <span className="text-xs text-warn">Cargá la cotización del dólar para poder pagar</span>}
           </>
         )}
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        {error && <span role="alert" className="text-sm text-neg">{error}</span>}
       </div>
     </section>
   );
@@ -191,23 +191,23 @@ export function Cards() {
     <main className="space-y-4">
       <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {cards.map((c) => (
-          <button key={c.id} onClick={() => setCardId(c.id)} className={`shrink-0 rounded px-3 py-1.5 text-sm ${c.id === card?.id ? "bg-slate-900 text-white" : "bg-white shadow"}`}>{c.name}</button>
+          <button key={c.id} onClick={() => setCardId(c.id)} className={`${c.id === card?.id ? "seg-on" : "seg-off"}`}>{c.name}</button>
         ))}
-        {!newCard && <button className="shrink-0 rounded bg-white px-3 py-1.5 text-sm shadow" onClick={() => setNewCard(true)}>+ Tarjeta</button>}
+        {!newCard && <button className="btn-soft" onClick={() => setNewCard(true)}>+ Tarjeta</button>}
       </div>
       {newCard && <NewCardForm onDone={() => setNewCard(false)} />}
 
       {!card ? (
-        <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Creá tu primera tarjeta para empezar a cargar compras en cuotas.</p>
+        <p className="rounded border border-warn/30 bg-warn-soft p-3 text-sm text-warn-ink">Creá tu primera tarjeta para empezar a cargar compras en cuotas.</p>
       ) : (
         <>
           <MonthNav month={month} onChange={setMonth}>
-            {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Compra</button>}
+            {!adding && <button className="btn-primary" onClick={() => setAdding(true)}>+ Compra</button>}
           </MonthNav>
-          <p className="-mt-2 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+          <p className="-mt-2 flex flex-wrap items-center gap-x-3 text-xs text-muted">
             <span>Por defecto cierra el día {card.closingDay} y vence el {card.dueDay}</span>
-            {card.isDefault ? <span className="text-amber-600" title="Se muestra primero en todas las pantallas">★ Predeterminada</span> : (
-              cards.length > 1 && <button className="underline hover:text-slate-900" onClick={() => patchCard.mutate({ id: card.id, patch: { isDefault: true } })}
+            {card.isDefault ? <span className="text-warn" title="Se muestra primero en todas las pantallas">★ Predeterminada</span> : (
+              cards.length > 1 && <button className="link" onClick={() => patchCard.mutate({ id: card.id, patch: { isDefault: true } })}
                 title="Se muestra primero en todas las pantallas">☆ Usar como predeterminada</button>
             )}
           </p>
@@ -218,12 +218,12 @@ export function Cards() {
 
       {commitments.some((m) => m.total > 0) && (
         <section>
-          <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses <span className="text-xs font-normal text-slate-500">· neto propio, sin lo de terceros</span></h2>
-          <div className="divide-y rounded-xl bg-white shadow">
+          <h2 className="mb-2 font-semibold">Compromisos próximos 12 meses <span className="text-xs font-normal text-muted">· neto propio, sin lo de terceros</span></h2>
+          <div className="card divide-y">
             {commitments.map((m) => (
               <div key={m.month} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 px-4 py-2 text-sm sm:grid-cols-[11rem_1fr_auto]">
                 <span>{monthLabel(m.month)}</span>
-                <span className="order-last col-span-2 text-xs text-slate-500 sm:order-none sm:col-span-1">{m.byCard.map((c) => `${nameOf(c.cardId)} ${formatMoney(c.total)}`).join(" · ")}</span>
+                <span className="order-last col-span-2 text-xs text-muted sm:order-none sm:col-span-1">{m.byCard.map((c) => `${nameOf(c.cardId)} ${formatMoney(c.total)}`).join(" · ")}</span>
                 <span className="text-right font-medium tabular-nums">{formatMoney(m.total)}</span>
               </div>
             ))}

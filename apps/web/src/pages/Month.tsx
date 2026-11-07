@@ -23,49 +23,49 @@ export function Month() {
   return (
     <main className="space-y-4">
       <MonthNav month={month} onChange={setMonth}>
-        <a className="rounded bg-white px-3 py-1.5 shadow" href={`/api/export/transactions.csv?from=${month}`} download>Exportar CSV</a>
-        {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Movimiento</button>}
+        <a className="btn-soft" href={`/api/export/transactions.csv?from=${month}`} download>Exportar CSV</a>
+        {!adding && <button className="btn-primary" onClick={() => setAdding(true)}>+ Movimiento</button>}
       </MonthNav>
 
       <StatRow items={[
-        { label: "Ingresos", value: formatMoney(s?.income ?? 0), cls: "text-emerald-600" },
+        { label: "Ingresos", value: formatMoney(s?.income ?? 0), cls: "text-pos" },
         {
-          label: "Gasto neto", value: formatMoney(s?.netExpense ?? 0), cls: "text-rose-600",
+          label: "Gasto neto", value: formatMoney(s?.netExpense ?? 0), cls: "text-neg",
           sub: (s?.reimbursements ?? 0) > 0 ? `${formatMoney(s!.expense)} − reintegros ${formatMoney(s!.reimbursements)}` : undefined,
         },
-        { label: "Resultado", value: formatMoney(s?.balance ?? 0), cls: (s?.balance ?? 0) < 0 ? "text-rose-600" : "text-slate-900" },
+        { label: "Resultado", value: formatMoney(s?.balance ?? 0), cls: (s?.balance ?? 0) < 0 ? "text-neg" : "text-ink" },
       ]} />
 
       {alerts && (alerts.over > 0 || alerts.warn > 0) && (
-        <Link to="/presupuestos" className="block rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 shadow">
-          Presupuesto: {alerts.over > 0 && <b className="text-rose-700">{alerts.over} superada{alerts.over > 1 ? "s" : ""}</b>}
+        <Link to="/presupuestos" className="card block border-warn/25 bg-warn-soft px-4 py-2 text-sm text-warn-ink hover:border-warn/50">
+          Presupuesto: {alerts.over > 0 && <b className="text-neg">{alerts.over} superada{alerts.over > 1 ? "s" : ""}</b>}
           {alerts.over > 0 && alerts.warn > 0 && " · "}{alerts.warn > 0 && <b>{alerts.warn} cerca del límite</b>} →
         </Link>
       )}
 
       {adding && <TransactionForm onDone={() => setAdding(false)} />}
 
-      <section className="divide-y rounded-xl bg-white shadow">
-        {isLoading && <p className="p-4 text-sm text-slate-500">Cargando…</p>}
-        {data?.items.length === 0 && <p className="p-4 text-sm text-slate-500">No hay movimientos este mes.</p>}
+      <section className="card divide-y">
+        {isLoading && <p className="p-4 text-sm text-muted">Cargando…</p>}
+        {data?.items.length === 0 && <p className="p-4 text-sm text-muted">No hay movimientos este mes.</p>}
         {data?.items.map((t) => (
           <div key={t.id} className="flex items-start gap-3 py-2 pl-4 pr-2">
-            <span className="w-10 shrink-0 pt-0.5 text-xs text-slate-500">{formatDay(t.date)}</span>
+            <span className="w-10 shrink-0 pt-0.5 text-xs text-muted">{formatDay(t.date)}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2 pr-2">
                 <span className="truncate text-sm">{t.description || (t.type === "TRANSFER" ? `${accName(t.accountId)} → ${accName(t.toAccountId!)}` : catName(t.categoryId))}</span>
-                <span className={`shrink-0 text-sm font-medium tabular-nums ${t.type === "INCOME" ? "text-emerald-600" : t.type === "EXPENSE" ? "text-rose-600" : "text-slate-500"}`}>
+                <span className={`shrink-0 text-sm font-medium tabular-nums ${t.type === "INCOME" ? "text-pos" : t.type === "EXPENSE" ? "text-neg" : "text-muted"}`}>
                   {t.type === "EXPENSE" ? "−" : ""}{formatMoney(t.amount)}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
+              <div className="flex items-center gap-2 text-xs text-muted">
                 <span className="min-w-0 truncate">
-                  {t.recurringId && <span title="Recurrente" className="mr-1 text-slate-400">↻</span>}
+                  {t.recurringId && <span title="Recurrente" className="mr-1 text-faint">↻</span>}
                   {t.type === "TRANSFER" ? "Transferencia" : catName(t.categoryId)} · {accName(t.accountId)}
                 </span>
                 <span className="ml-auto flex shrink-0 items-center">
                   {t.status === "PENDING" && (
-                    <button className="mr-1 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800" title="Marcar como pagado" onClick={() => update.mutate({ id: t.id, patch: { status: "PAID" } })}>Pendiente</button>
+                    <button className="tag mr-1 bg-warn-soft text-warn-ink" title="Marcar como pagado" onClick={() => update.mutate({ id: t.id, patch: { status: "PAID" } })}>Pendiente</button>
                   )}
                   {t.status === "PENDING" && (
                     <button className={iconBtn} aria-label="Editar monto" title="Editar monto (queda fijo)"

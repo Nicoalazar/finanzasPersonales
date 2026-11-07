@@ -9,7 +9,7 @@ import {
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
-const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field";
 const parseNum = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
 const errText = (e: unknown) => (e instanceof Error ? e.message : "Error");
 
@@ -18,13 +18,13 @@ const methodOf = (e: SharedEntryDto) => (e.cardId ? `card:${e.cardId}` : e.accou
 
 function ImportResult({ r }: { r: SharedImportResultDto }) {
   return (
-    <div className="space-y-1 rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-900 shadow">
+    <div className="card space-y-1 border-pos/30 bg-pos-soft px-4 py-2 text-sm text-pos-ink">
       <p>
         Importados {r.created} nuevos · {r.unchanged} sin cambios{r.removed > 0 && ` · ${r.removed} quitados (ya no están en la planilla)`}
         {r.skippedBefore > 0 && ` · ${r.skippedBefore} anteriores al mes de inicio`}
       </p>
       {r.errors.length > 0 && (
-        <details className="text-amber-900">
+        <details className="text-warn-ink">
           <summary className="cursor-pointer">{r.errors.length} fila{r.errors.length > 1 ? "s" : ""} sin importar</summary>
           <ul className="mt-1 list-disc pl-5 text-xs">{r.errors.map((e) => <li key={e.line}>Fila {e.line}: {e.message}</li>)}</ul>
         </details>
@@ -52,35 +52,35 @@ function Config({ config, onError }: { config: SharedConfigDto; onError: (m: str
   };
 
   return (
-    <details className="rounded-xl bg-white shadow">
+    <details className="card">
       <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
         Configuración del formulario
-        {!config.defaultAccountId && <span className="ml-2 text-xs font-normal text-amber-700">· falta elegir la cuenta de mis pagos</span>}
+        {!config.defaultAccountId && <span className="ml-2 text-xs font-normal text-warn">· falta elegir la cuenta de mis pagos</span>}
       </summary>
       <form onSubmit={save} className="grid gap-3 px-4 pb-4 text-sm sm:grid-cols-2">
-        <label className="space-y-1"><span className="text-xs text-slate-500">Mi nombre en "Pagado por"</span>
+        <label className="space-y-1"><span className="text-xs text-muted">Mi nombre en "Pagado por"</span>
           <input className={`${field} w-full`} value={f.meName} onChange={set("meName")} required /></label>
-        <label className="space-y-1"><span className="text-xs text-slate-500">Nombre de mi pareja</span>
+        <label className="space-y-1"><span className="text-xs text-muted">Nombre de mi pareja</span>
           <input className={`${field} w-full`} value={f.partnerName} onChange={set("partnerName")} required /></label>
-        <label className="space-y-1"><span className="text-xs text-slate-500">Mis pagos salen de</span>
+        <label className="space-y-1"><span className="text-xs text-muted">Mis pagos salen de</span>
           <select className={`${field} w-full`} value={f.defaultAccountId ?? ""} onChange={set("defaultAccountId")}>
             <option value="">Elegí una cuenta…</option>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select></label>
-        <label className="space-y-1"><span className="text-xs text-slate-500">Importar respuestas desde</span>
+        <label className="space-y-1"><span className="text-xs text-muted">Importar respuestas desde</span>
           <input type="month" className={`${field} w-full`} value={f.fromMonth} onChange={set("fromMonth")} required /></label>
-        <label className="space-y-1"><span className="text-xs text-slate-500">Grupo (define mi % de cada mes)</span>
+        <label className="space-y-1"><span className="text-xs text-muted">Grupo (define mi % de cada mes)</span>
           <select className={`${field} w-full`} value={f.groupId ?? ""} onChange={set("groupId")}>
             <option value="">Sin grupo (50 %)</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select></label>
-        <label className="space-y-1 sm:col-span-2"><span className="text-xs text-slate-500">Link del CSV publicado (opcional)</span>
+        <label className="space-y-1 sm:col-span-2"><span className="text-xs text-muted">Link del CSV publicado (opcional)</span>
           <input className={`${field} w-full`} type="url" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=…&output=csv" value={f.sourceUrl ?? ""} onChange={set("sourceUrl")} /></label>
-        <p className="text-xs text-slate-500 sm:col-span-2">
+        <p className="text-xs text-muted sm:col-span-2">
           Para sincronizar con un botón: en la planilla de respuestas, Archivo → Compartir → Publicar en la Web, elegí la hoja de respuestas y
           "Valores separados por comas (.csv)". Cualquiera con ese link puede ver la hoja; si preferís no publicarla, descargala como CSV y subila con "Subir CSV".
         </p>
-        <div className="sm:col-span-2"><button className="rounded bg-slate-900 px-3 py-1.5 text-white" disabled={patch.isPending}>Guardar</button></div>
+        <div className="sm:col-span-2"><button className="btn-primary" disabled={patch.isPending}>{patch.isPending ? "Guardando…" : "Guardar"}</button></div>
       </form>
     </details>
   );
@@ -98,7 +98,7 @@ function AddEntry({ month, config, onDone, onError }: { month: string; config: S
   };
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
-    <form onSubmit={submit} className="grid gap-2 rounded-xl bg-white p-4 text-sm shadow sm:grid-cols-6">
+    <form onSubmit={submit} className="card grid gap-2 p-4 text-sm sm:grid-cols-6">
       <input type="date" className={`${field} sm:col-span-2`} value={f.date} onChange={set("date")} required aria-label="Fecha" />
       <select className={`${field} sm:col-span-2`} value={f.payer} onChange={set("payer")} aria-label="Pagó">
         <option value="ME">Pagué yo ({config.meName})</option>
@@ -108,8 +108,8 @@ function AddEntry({ month, config, onDone, onError }: { month: string; config: S
       <input className={`${field} sm:col-span-2`} placeholder="Tipo (Mercadería…)" value={f.kind} onChange={set("kind")} required aria-label="Tipo" list="shared-kinds" />
       <input className={`${field} sm:col-span-3`} placeholder="Detalle" value={f.description} onChange={set("description")} aria-label="Detalle" />
       <div className="flex gap-2">
-        <button className="rounded bg-slate-900 px-3 py-1.5 text-white" disabled={create.isPending}>Guardar</button>
-        <button type="button" className="text-slate-500" onClick={onDone}>Cancelar</button>
+        <button className="btn-primary" disabled={create.isPending}>{create.isPending ? "Guardando…" : "Guardar"}</button>
+        <button type="button" className="text-muted" onClick={onDone}>Cancelar</button>
       </div>
     </form>
   );
@@ -170,7 +170,7 @@ export function Shared() {
     </select>
   );
 
-  if (!config || !m) return <p className="text-sm text-slate-500">Cargando…</p>;
+  if (!config || !m) return <p className="text-sm text-muted">Cargando…</p>;
   const partner = config.partnerName;
   const owesMe = m.pending > 0;
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? "?";
@@ -179,23 +179,23 @@ export function Shared() {
     <main className="space-y-4">
       <MonthNav month={month} onChange={setMonth}>
         {config.sourceUrl && (
-          <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => runImport()} disabled={imp.isPending}>
+          <button className="btn-primary" onClick={() => runImport()} disabled={imp.isPending}>
             {imp.isPending ? "Sincronizando…" : "Sincronizar"}
           </button>
         )}
-        <label className="cursor-pointer rounded bg-white px-3 py-1.5 shadow">
+        <label className="btn-soft">
           Subir CSV
           <input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
-        {!adding && <button className="rounded bg-white px-3 py-1.5 shadow" onClick={() => setAdding(true)}>+ Gasto</button>}
+        {!adding && <button className="btn-soft" onClick={() => setAdding(true)}>+ Gasto</button>}
       </MonthNav>
-      {config.lastSyncAt && <p className="-mt-2 text-xs text-slate-500">Última importación: {new Date(config.lastSyncAt).toLocaleString("es-AR")}</p>}
+      {config.lastSyncAt && <p className="-mt-2 text-xs text-muted">Última importación: {new Date(config.lastSyncAt).toLocaleString("es-AR")}</p>}
 
-      {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
+      {error && <p role="alert" className="rounded bg-neg-soft p-2 text-sm text-neg">{error}</p>}
       {result && <ImportResult r={result} />}
-      {!config.defaultAccountId && <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Elegí de qué cuenta salen tus pagos para que se registren en tus movimientos.</p>}
+      {!config.defaultAccountId && <p className="rounded border border-warn/30 bg-warn-soft p-3 text-sm text-warn-ink">Elegí de qué cuenta salen tus pagos para que se registren en tus movimientos.</p>}
       {m.recurring.length > 0 && (
-        <p className="rounded bg-slate-100 p-3 text-sm text-slate-700">
+        <p className="rounded bg-canvas p-3 text-sm text-ink">
           Recurrentes del grupo sumados al mes: {m.recurring.map((r) => `${r.name} (${formatMoney(r.total)}, mi parte ${formatMoney(r.myShare)})`).join(" · ")}.
           {m.overlappingRecurring.length > 0 && " Si también los cargan en el formulario se cuentan dos veces."}
         </p>
@@ -206,13 +206,13 @@ export function Shared() {
       <datalist id="shared-kinds">{m.byKind.map((k) => <option key={k.kind} value={k.kind} />)}</datalist>
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl bg-white p-4 shadow">
-          <div className="text-xs text-slate-500">Total común del mes</div>
+        <div className="card p-4">
+          <div className="text-xs text-muted">Total común del mes</div>
           <div className="text-lg font-semibold">{formatMoney(m.total)}</div>
-          <div className="text-xs text-slate-500">Pagué {formatMoney(m.paidByMe)} · {partner} {formatMoney(m.paidByPartner)}</div>
+          <div className="text-xs text-muted">Pagué {formatMoney(m.paidByMe)} · {partner} {formatMoney(m.paidByPartner)}</div>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow">
-          <div className="text-xs text-slate-500">Mi parte</div>
+        <div className="card p-4">
+          <div className="text-xs text-muted">Mi parte</div>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-semibold">{formatMoney(m.myShare)}</span>
             {m.groupId ? (
@@ -220,26 +220,26 @@ export function Shared() {
                 <NumberInput className={`${field} w-16 text-right`} value={pct} aria-label="Mi porcentaje del mes"
                   onChange={setPct} onBlur={savePercent} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />%
               </label>
-            ) : <span className="text-sm text-slate-500">50 %</span>}
+            ) : <span className="text-sm text-muted">50 %</span>}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted">
             {m.percentIsOwn ? (
-              <>Fijado para este mes · <button className="underline" onClick={() => guard(() => clearPercent.mutateAsync({ id: m.groupId!, month }))}>usar el anterior</button></>
+              <>Fijado para este mes · <button className="link" onClick={() => guard(() => clearPercent.mutateAsync({ id: m.groupId!, month }))}>usar el anterior</button></>
             ) : "Heredado del último mes cargado"}
             {" "}· {partner} {formatMoney(m.partnerShare)}
           </div>
         </div>
-        <div className={`rounded-xl p-4 shadow ${m.pending === 0 ? "bg-white" : owesMe ? "bg-emerald-50" : "bg-rose-50"}`}>
-          <div className="text-xs text-slate-500">Saldo</div>
+        <div className={`card p-4 ${m.pending === 0 ? "" : owesMe ? "bg-pos-soft" : "bg-neg-soft"}`}>
+          <div className="text-xs text-muted">Saldo</div>
           <div className="text-lg font-semibold">
             {m.pending === 0 ? (m.total > 0 ? "Saldado" : "—") : owesMe ? `${partner} te debe ${formatMoney(m.pending)}` : `Le debés ${formatMoney(-m.pending)}`}
           </div>
-          {m.settled !== 0 && <div className="text-xs text-slate-500">Saldo del mes {formatMoney(m.balance)} · ya registrado {formatMoney(m.settled)}</div>}
+          {m.settled !== 0 && <div className="text-xs text-muted">Saldo del mes {formatMoney(m.balance)} · ya registrado {formatMoney(m.settled)}</div>}
         </div>
       </section>
 
       {(m.pending !== 0 || m.settlements.length > 0) && (
-        <section className="space-y-2 rounded-xl bg-white p-4 text-sm shadow">
+        <section className="card space-y-2 p-4 text-sm">
           {m.pending !== 0 && (
             <form className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap" onSubmit={(e) => {
               e.preventDefault();
@@ -251,22 +251,22 @@ export function Shared() {
               <select className={field} value={settleForm.accountId || config.defaultAccountId || ""} onChange={(e) => setSettleForm({ ...settleForm, accountId: e.target.value })} aria-label="Cuenta">
                 {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-white" disabled={settle.isPending || accounts.length === 0}>Registrar</button>
+              <button className="btn-primary col-span-2" disabled={settle.isPending || accounts.length === 0}>{settle.isPending ? "Registrando…" : "Registrar"}</button>
             </form>
           )}
           {m.settlements.map((s) => (
-            <div key={s.transactionId} className="flex items-center gap-2 text-xs text-slate-600">
+            <div key={s.transactionId} className="flex items-center gap-2 text-xs text-muted">
               <span>{formatDay(s.date)}</span>
               <span className="flex-1">{s.amount > 0 ? `${partner} me pagó` : `Le pagué a ${partner}`} {formatMoney(Math.abs(s.amount))} · {accountName(s.accountId)}</span>
               <button className={iconBtnDanger} aria-label="Eliminar pago" onClick={() => confirm("¿Eliminar este pago?") && guard(() => delSettlement.mutateAsync(s.transactionId))}>✕</button>
             </div>
           ))}
-          {m.pending > 0 && <p className="text-xs text-slate-500">Lo que te paga {partner} entra como reintegro y se descuenta de tu gasto.</p>}
+          {m.pending > 0 && <p className="text-xs text-muted">Lo que te paga {partner} entra como reintegro y se descuenta de tu gasto.</p>}
         </section>
       )}
 
       {m.byKind.length > 0 && (
-        <section className="rounded-xl bg-white shadow">
+        <section className="card">
           {/* celular: una tarjeta por tipo */}
           <div className="divide-y sm:hidden">
             {m.byKind.map((k) => (
@@ -275,8 +275,8 @@ export function Shared() {
                   <span className="font-medium">{k.kind}</span>
                   <span className="tabular-nums">{formatMoney(k.total)}</span>
                 </div>
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>{k.pct.toLocaleString("es-AR")}% del mes</span><span>Mi parte <b className="font-medium text-slate-700">{formatMoney(k.myShare)}</b></span>
+                <div className="flex justify-between text-xs text-muted">
+                  <span>{k.pct.toLocaleString("es-AR")}% del mes</span><span>Mi parte <b className="font-medium text-ink">{formatMoney(k.myShare)}</b></span>
                 </div>
                 {kindSelect(k.kind, k.categoryId, "w-full")}
               </div>
@@ -284,7 +284,7 @@ export function Shared() {
           </div>
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-500">
+              <thead className="text-left text-xs text-muted">
                 <tr><th className="px-4 py-2 font-normal">Tipo</th><th className="px-2 py-2 text-right font-normal">Total</th><th className="px-2 py-2 text-right font-normal">% del mes</th><th className="px-2 py-2 text-right font-normal">Mi parte</th><th className="px-4 py-2 font-normal">Va a mi categoría</th></tr>
               </thead>
               <tbody className="divide-y">
@@ -292,7 +292,7 @@ export function Shared() {
                   <tr key={k.kind}>
                     <td className="px-4 py-2">{k.kind}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.total)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-500">{k.pct.toLocaleString("es-AR")}%</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted">{k.pct.toLocaleString("es-AR")}%</td>
                     <td className="px-2 py-2 text-right tabular-nums">{formatMoney(k.myShare)}</td>
                     <td className="px-4 py-1.5">{kindSelect(k.kind, k.categoryId, "w-full min-w-36")}</td>
                   </tr>
@@ -303,20 +303,20 @@ export function Shared() {
         </section>
       )}
 
-      <section className="divide-y rounded-xl bg-white shadow">
+      <section className="card divide-y">
         {m.entries.length === 0 && (
-          <p className="p-4 text-sm text-slate-500">No hay gastos compartidos este mes. {config.sourceUrl ? "Sincronizá" : "Subí el CSV de respuestas"} para traerlos.</p>
+          <p className="p-4 text-sm text-muted">No hay gastos compartidos este mes. {config.sourceUrl ? "Sincronizá" : "Subí el CSV de respuestas"} para traerlos.</p>
         )}
         {m.entries.map((e) => (
           <div key={e.id} className="flex items-start gap-3 py-2 pl-4 pr-2">
-            <span className="w-10 shrink-0 pt-0.5 text-xs text-slate-500">{formatDay(e.date)}</span>
+            <span className="w-10 shrink-0 pt-0.5 text-xs text-muted">{formatDay(e.date)}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2 pr-2">
                 <span className="truncate text-sm">{e.description || e.kind}</span>
                 <span className="shrink-0 text-sm font-medium tabular-nums">{formatMoney(e.amount)}</span>
               </div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                <span className={`rounded-full px-2 py-0.5 ${e.payer === "ME" ? "bg-sky-100 text-sky-800" : "bg-violet-100 text-violet-800"}`}>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                <span className={`tag rounded-full ${e.payer === "ME" ? "bg-sky-100 text-sky-800" : "bg-violet-100 text-violet-800"}`}>
                   {e.payer === "ME" ? config.meName : partner}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{e.kind}{e.source === "MANUAL" && " · cargado acá"}</span>

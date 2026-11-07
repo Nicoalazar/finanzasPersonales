@@ -4,7 +4,7 @@ import { useAccounts, useCategories, useCreateTransaction } from "../lib/queries
 import { today } from "../lib/format";
 import { NumberInput } from "./NumberInput";
 
-const field = "w-full rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field w-full";
 
 export function TransactionForm({ onDone }: { onDone: () => void }) {
   const accounts = useAccounts().data?.filter((a) => !a.archived) ?? [];
@@ -37,14 +37,14 @@ export function TransactionForm({ onDone }: { onDone: () => void }) {
     }
   };
 
-  if (accounts.length === 0) return <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Primero creá una cuenta en Configuración.</p>;
+  if (accounts.length === 0) return <p className="rounded border border-warn/30 bg-warn-soft p-3 text-sm text-warn-ink">Primero creá una cuenta en Configuración.</p>;
 
   return (
-    <form onSubmit={submit} className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow sm:grid-cols-4">
+    <form onSubmit={submit} className="card grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
       <div className="col-span-2 flex gap-1 sm:col-span-4">
         {(["EXPENSE", "INCOME", "TRANSFER"] as const).map((t) => (
           <button key={t} type="button" onClick={() => { setType(t); setCategoryId(""); }}
-            className={`rounded px-3 py-1 text-sm ${type === t ? "bg-slate-900 text-white" : "bg-slate-100"}`}>
+            className={`${type === t ? "seg-on" : "seg-off"} py-1`}>
             {{ EXPENSE: "Gasto", INCOME: "Ingreso", TRANSFER: "Transferencia" }[t]}
           </button>
         ))}
@@ -67,10 +67,10 @@ export function TransactionForm({ onDone }: { onDone: () => void }) {
       )}
       <input className={`${field} col-span-2 sm:col-span-3`} placeholder="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} />
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pending} onChange={(e) => setPending(e.target.checked)} /> Pendiente</label>
-      {error && <p className="col-span-2 text-sm text-red-600 sm:col-span-4">{error}</p>}
+      {error && <p role="alert" className="col-span-2 text-sm text-neg sm:col-span-4">{error}</p>}
       <div className="col-span-2 flex gap-2 sm:col-span-4">
-        <button className="rounded bg-slate-900 px-4 py-1.5 text-sm text-white" disabled={create.isPending}>Guardar</button>
-        <button type="button" className="text-sm text-slate-500" onClick={onDone}>Cancelar</button>
+        <button className="btn-primary px-4" disabled={create.isPending}>{create.isPending ? "Guardando…" : "Guardar"}</button>
+        <button type="button" className="text-sm text-muted" onClick={onDone}>Cancelar</button>
       </div>
     </form>
   );

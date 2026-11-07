@@ -5,14 +5,14 @@ import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format
 import { useBudgets, useCopyBudgets, useDeleteBudget, useSetBudget } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
-const field = "rounded border bg-white px-2 py-1.5 text-sm";
+const field = "field";
 const parseNum = (s: string) => Number(s.replace(",", "."));
-const BAR = { NONE: "bg-slate-300", OK: "bg-emerald-500", WARN: "bg-amber-500", OVER: "bg-rose-500" } as const;
+const BAR = { NONE: "bg-line-strong", OK: "bg-pos", WARN: "bg-warn", OVER: "bg-neg" } as const;
 const LABEL = { NONE: "", OK: "", WARN: "Cerca del límite", OVER: "Superado" } as const;
 
 function Progress({ pct, status }: { pct: number | null; status: BudgetRowDto["status"] }) {
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct ?? 0} aria-valuemin={0} aria-valuemax={100}>
+    <div className="h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct ?? 0} aria-valuemin={0} aria-valuemax={100}>
       <div className={`h-full ${BAR[status]}`} style={{ width: `${Math.min(pct ?? 0, 100)}%` }} />
     </div>
   );
@@ -36,11 +36,11 @@ function Row({ row, month, onError }: { row: BudgetRowDto; month: string; onErro
   };
 
   return (
-    <div className="space-y-1.5 rounded-xl bg-white p-4 shadow">
+    <div className="card space-y-1.5 p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="min-w-28 flex-1 font-medium">{row.name}</span>
         {row.status !== "NONE" && LABEL[row.status] && (
-          <span className={`rounded-full px-2 py-0.5 text-xs ${row.status === "OVER" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"}`}>{LABEL[row.status]}</span>
+          <span className={`tag rounded-full ${row.status === "OVER" ? "bg-neg-soft text-neg-ink" : "bg-warn-soft text-warn-ink"}`}>{LABEL[row.status]}</span>
         )}
         {row.categoryId && (
           <NumberInput className={`${field} w-28 text-right`} placeholder="Sin límite" value={value} aria-label={`Presupuesto de ${row.name}`}
@@ -48,10 +48,10 @@ function Row({ row, month, onError }: { row: BudgetRowDto; month: string; onErro
         )}
       </div>
       {row.budget != null && <Progress pct={row.pct} status={row.status} />}
-      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-slate-500">
+      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-muted">
         <span>Gastado {formatMoney(row.spent)}{row.pct != null && ` · ${row.pct.toLocaleString("es-AR")}%`}</span>
         {row.remaining != null && (
-          <span className={row.remaining < 0 ? "text-rose-600" : ""}>{row.remaining < 0 ? `Te pasaste ${formatMoney(-row.remaining)}` : `Quedan ${formatMoney(row.remaining)}`}</span>
+          <span className={row.remaining < 0 ? "text-neg" : ""}>{row.remaining < 0 ? `Te pasaste ${formatMoney(-row.remaining)}` : `Quedan ${formatMoney(row.remaining)}`}</span>
         )}
       </div>
     </div>
@@ -87,29 +87,29 @@ export function Budgets() {
       <MonthNav month={month} onChange={setMonth} />
 
       {t && t.budget > 0 && (
-        <section className="space-y-2 rounded-xl bg-white p-4 shadow">
+        <section className="card space-y-2 p-4">
           <div className="flex flex-wrap justify-between gap-2 text-sm">
             <span>Presupuestado <b>{formatMoney(t.budget)}</b></span>
             <span>Gastado en esas categorías <b>{formatMoney(t.spentInBudgeted)}</b>{t.pct != null && ` (${t.pct.toLocaleString("es-AR")}%)`}</span>
           </div>
           <Progress pct={t.pct} status={t.status} />
           {(t.over > 0 || t.warn > 0) && (
-            <p className="text-xs text-slate-600">{t.over > 0 && <b className="text-rose-600">{t.over} superada{t.over > 1 ? "s" : ""}</b>}{t.over > 0 && t.warn > 0 && " · "}{t.warn > 0 && <b className="text-amber-700">{t.warn} cerca del límite</b>}</p>
+            <p className="text-xs text-muted">{t.over > 0 && <b className="text-neg">{t.over} superada{t.over > 1 ? "s" : ""}</b>}{t.over > 0 && t.warn > 0 && " · "}{t.warn > 0 && <b className="text-warn">{t.warn} cerca del límite</b>}</p>
           )}
-          <p className="text-xs text-slate-500">Gasto total del mes (incluye lo que no tiene presupuesto): {formatMoney(t.spentTotal)}</p>
+          <p className="text-xs text-muted">Gasto total del mes (incluye lo que no tiene presupuesto): {formatMoney(t.spentTotal)}</p>
         </section>
       )}
 
-      <section className="flex flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm shadow">
+      <section className="card flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
         <span>Copiar de {monthLabel(prev)} con</span>
         <label className="flex items-center gap-1">+<NumberInput className={`${field} w-16`} value={pct} onChange={setPct} aria-label="Aumento en porcentaje" />%</label>
-        <label className="flex items-center gap-1 text-xs text-slate-500"><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /> Reemplazar los ya cargados</label>
-        <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={doCopy} disabled={copy.isPending}>Copiar</button>
-        {notice && <span className="text-xs text-emerald-700">{notice}</span>}
+        <label className="flex items-center gap-1 text-xs text-muted"><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /> Reemplazar los ya cargados</label>
+        <button className="btn-primary" onClick={doCopy} disabled={copy.isPending}>{copy.isPending ? "Copiando…" : "Copiar"}</button>
+        {notice && <span className="text-xs text-pos">{notice}</span>}
       </section>
 
-      {error && <p className="rounded bg-rose-50 p-2 text-sm text-rose-700">{error}</p>}
-      {rows.length === 0 && <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Creá categorías de gastos en Configuración para poder presupuestarlas.</p>}
+      {error && <p role="alert" className="rounded bg-neg-soft p-2 text-sm text-neg">{error}</p>}
+      {rows.length === 0 && <p className="rounded border border-warn/30 bg-warn-soft p-3 text-sm text-warn-ink">Creá categorías de gastos en Configuración para poder presupuestarlas.</p>}
       <div className="space-y-2">
         {rows.map((r) => <Row key={r.categoryId ?? "none"} row={r} month={month} onError={setError} />)}
       </div>

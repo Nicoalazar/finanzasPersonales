@@ -24,7 +24,7 @@ function xLabelEvery(n: number) { return n <= 12 ? 1 : n <= 24 ? 2 : 3; }
 function Tooltip({ idx, n, children }: { idx: number; n: number; children: React.ReactNode }) {
   const pct = Math.min(Math.max(((M.l + (IW / n) * (idx + 0.5)) / W) * 100, 16), 84);
   return (
-    <div role="tooltip" className="pointer-events-none absolute top-0 z-10 w-52 -translate-x-1/2 rounded-lg border bg-white p-2.5 text-xs shadow-lg" style={{ left: `${pct}%` }}>
+    <div role="tooltip" className="pointer-events-none absolute top-0 z-10 w-52 -translate-x-1/2 rounded-lg border bg-surface p-2.5 text-xs shadow-lg" style={{ left: `${pct}%` }}>
       {children}
     </div>
   );
@@ -51,11 +51,11 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
         {yTicks(max).map((t) => (
           <g key={t}>
             <line x1={M.l} x2={W - M.r} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" strokeWidth={1} />
-            <text x={M.l - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#64748b">{formatCompact(t)}</text>
+            <text x={M.l - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--chart-axis)">{formatCompact(t)}</text>
           </g>
         ))}
         {series.map((s, i) => {
-          if (hover === i) return <rect key={`h${i}`} x={M.l + band * i} y={M.t} width={band} height={IH} fill="#f1f5f9" />;
+          if (hover === i) return <rect key={`h${i}`} x={M.l + band * i} y={M.t} width={band} height={IH} fill="var(--chart-band)" />;
           return null;
         })}
         {series.map((s, i) => {
@@ -73,7 +73,7 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
                   ? <path key={g.key} d={roundedTop(x, yy, barW, hgt, 4)} fill={g.color} />
                   : <rect key={g.key} x={x} y={yy + (full - hgt)} width={barW} height={hgt} fill={g.color} />;
               })}
-              {i % every === 0 && <text x={cx(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="#64748b">{monthShort(s.month, s.month.endsWith("-01") || i === 0)}</text>}
+              {i % every === 0 && <text x={cx(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="var(--chart-axis)">{monthShort(s.month, s.month.endsWith("-01") || i === 0)}</text>}
             </g>
           );
         })}
@@ -98,9 +98,9 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
           <div className="flex justify-between font-medium"><span>Resultado</span><span>{formatMoney(h.balance)}</span></div>
         </Tooltip>
       )}
-      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Leyenda">
-        {STACK.map((st) => <li key={st.key} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: st.color }} />{st.label}</li>)}
-        <li className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: "var(--chart-ink)" }} />Ingresos</li>
+      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Leyenda">
+        {STACK.map((st) => <li key={st.key} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: st.color }} />{st.label}</li>)}
+        <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded" style={{ background: "var(--chart-ink)" }} />Ingresos</li>
       </ul>
     </div>
   );
@@ -110,7 +110,7 @@ function Row({ color, label, value, line }: { color: string; label: string; valu
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="flex items-center gap-1.5">
-        <span className={line ? "h-0.5 w-3 rounded" : "h-2 w-2 rounded-sm"} style={{ background: color }} />{label}
+        <span aria-hidden="true" className={line ? "h-0.5 w-3 rounded" : "h-2 w-2 rounded-sm"} style={{ background: color }} />{label}
       </span>
       <span>{formatMoney(value)}</span>
     </div>
@@ -139,13 +139,13 @@ export function CumulativeChart({ series }: { series: DashboardSeriesPoint[] }) 
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Resultado acumulado por mes">
         {yTicks(max, min).map((t) => (
           <g key={t}>
-            <line x1={M.l} x2={W - M.r} y1={y(t)} y2={y(t)} stroke={Math.abs(t) < 1e-9 ? "#94a3b8" : "var(--chart-grid)"} strokeWidth={1} />
-            <text x={M.l - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#64748b">{formatCompact(t)}</text>
+            <line x1={M.l} x2={W - M.r} y1={y(t)} y2={y(t)} stroke={Math.abs(t) < 1e-9 ? "var(--chart-zero)" : "var(--chart-grid)"} strokeWidth={1} />
+            <text x={M.l - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--chart-axis)">{formatCompact(t)}</text>
           </g>
         ))}
-        {series.map((s, i) => i % every === 0 && <text key={s.month} x={x(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="#64748b">{monthShort(s.month, s.month.endsWith("-01") || i === 0)}</text>)}
+        {series.map((s, i) => i % every === 0 && <text key={s.month} x={x(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="var(--chart-axis)">{monthShort(s.month, s.month.endsWith("-01") || i === 0)}</text>)}
         <polyline points={pts} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {hover != null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + IH} stroke="#94a3b8" strokeWidth={1} />}
+        {hover != null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + IH} stroke="var(--color-faint)" strokeWidth={1} />}
         {(() => {
           const i = hover ?? lastI;
           return <circle cx={x(i)} cy={y(series[i]!.cumulativeBalance)} r={4} fill="var(--series-1)" stroke="var(--chart-surface)" strokeWidth={2} />;
@@ -162,8 +162,8 @@ export function CumulativeChart({ series }: { series: DashboardSeriesPoint[] }) 
         <Tooltip idx={hover} n={n}>
           <div className="mb-1 font-semibold">{monthLabel(h.month)}</div>
           <div className="flex justify-between"><span>Acumulado</span><span>{formatMoney(h.cumulativeBalance)}</span></div>
-          <div className="flex justify-between text-slate-500"><span>Resultado del mes</span><span>{formatMoney(h.balance)}</span></div>
-          {h.invested !== 0 && <div className="flex justify-between text-slate-500"><span>Invertido</span><span>{formatMoney(h.invested)}</span></div>}
+          <div className="flex justify-between text-muted"><span>Resultado del mes</span><span>{formatMoney(h.balance)}</span></div>
+          {h.invested !== 0 && <div className="flex justify-between text-muted"><span>Invertido</span><span>{formatMoney(h.invested)}</span></div>}
         </Tooltip>
       )}
     </div>
@@ -176,7 +176,7 @@ export function SeriesTable({ series }: { series: DashboardSeriesPoint[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[40rem] text-xs tabular-nums">
-        <thead className="text-slate-500">
+        <thead className="text-muted">
           <tr><th className="px-2 py-1.5 text-left font-normal">Mes</th><th className={th}>Ingresos</th><th className={th}>Tarjetas</th><th className={th}>Recurrentes</th><th className={th}>Otros</th><th className={th}>Reintegros</th><th className={th}>Resultado</th><th className={th}>Acumulado</th></tr>
         </thead>
         <tbody className="divide-y">

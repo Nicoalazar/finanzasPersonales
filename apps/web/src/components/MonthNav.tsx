@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { monthLabel, shiftMonth } from "../lib/format";
 
-const arrow = "grid h-9 w-9 shrink-0 place-items-center rounded bg-white text-lg shadow";
+const arrow = "btn-soft h-9 w-9 px-0 text-lg leading-none";
 
 /**
  * Selector de mes con acciones a la derecha. En el celular el selector ocupa todo el ancho
