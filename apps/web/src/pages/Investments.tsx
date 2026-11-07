@@ -112,9 +112,13 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
             {moves.map((m) => (
               <div key={m.id} className="flex items-center gap-2 py-1 pl-3 pr-1 text-sm">
                 <span className="w-12 text-xs text-slate-500">{formatDay(m.date)}</span>
-                <span className="flex-1 truncate">{m.kind === "DEPOSIT" ? "Depósito desde" : "Retiro hacia"} {nameOf(m.otherAccountId)}</span>
-                <span className={m.kind === "DEPOSIT" ? "" : "text-rose-600"}>{m.kind === "DEPOSIT" ? "" : "−"}{formatMoney(m.amount)}</span>
-                <button className={iconBtnDanger} aria-label="Eliminar movimiento" onClick={() => confirm("¿Eliminar este movimiento? Se revierte en las dos cuentas.") && guard(() => delTx.mutateAsync(m.id))()}>✕</button>
+                <span className="flex-1 truncate">
+                  {m.kind === "DEPOSIT" ? `Depósito desde ${nameOf(m.otherAccountId)}`
+                    : m.kind === "WITHDRAWAL" ? `Retiro hacia ${nameOf(m.otherAccountId)}`
+                    : `${m.kind === "INCOME" ? "Ingreso" : "Gasto"}${m.description ? `: ${m.description}` : ""}`}
+                </span>
+                <span className={m.kind === "DEPOSIT" || m.kind === "INCOME" ? "" : "text-rose-600"}>{m.kind === "DEPOSIT" || m.kind === "INCOME" ? "" : "−"}{formatMoney(m.amount)}</span>
+                <button className={iconBtnDanger} aria-label="Eliminar movimiento" onClick={() => confirm(m.kind === "INCOME" || m.kind === "EXPENSE" ? "¿Eliminar este movimiento?" : "¿Eliminar este movimiento? Se revierte en las dos cuentas.") && guard(() => delTx.mutateAsync(m.id))()}>✕</button>
               </div>
             ))}
           </div>

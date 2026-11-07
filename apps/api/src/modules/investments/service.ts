@@ -46,11 +46,16 @@ export async function buildInvestments(): Promise<InvestmentsDto> {
           movements.push({ id: t.id, date, kind: "WITHDRAWAL", amount: r2(cents), otherAccountId: t.toAccountId!, description: t.description });
         }
       }
+      // solo las transferencias cuentan para el resumen mensual de depósitos/retiros
+      for (const m of movements) bumpMonth(m.date.slice(0, 7), m.kind === "DEPOSIT" ? "deposits" : "withdrawals", toCents(m.amount));
       for (const t of direct) if (t.accountId === a.id) {
         const cents = toCents(num(t.amount));
-        flows.push({ date: fromDbDate(t.date), cents: t.type === "INCOME" ? cents : -cents });
+        const date = fromDbDate(t.date);
+        const income = t.type === "INCOME";
+        flows.push({ date, cents: income ? cents : -cents });
+        movements.push({ id: t.id, date, kind: income ? "INCOME" : "EXPENSE", amount: r2(cents), otherAccountId: "", description: t.description });
       }
-      for (const m of movements) bumpMonth(m.date.slice(0, 7), m.kind === "DEPOSIT" ? "deposits" : "withdrawals", toCents(m.amount));
+      movements.sort((x, y) => y.date.localeCompare(x.date));
 
       const initial = toCents(num(a.initialBalance));
       const snaps = snapshots.filter((s) => s.accountId === a.id).map((s) => ({ id: s.id, date: fromDbDate(s.date), balanceCents: toCents(num(s.balance)) }));

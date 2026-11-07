@@ -327,7 +327,8 @@ export interface InvestmentRowDto {
   id: string; date: string; theoretical: number; real: number; gain: number; periodGain: number; returnPct: number | null;
 }
 export interface InvestmentMovementDto {
-  id: string; date: string; kind: "DEPOSIT" | "WITHDRAWAL"; amount: number; otherAccountId: string; description: string;
+  /** DEPOSIT/WITHDRAWAL: transferencias con otra cuenta. INCOME/EXPENSE: ingresos y gastos cargados directo en la cuenta (otherAccountId vacío). */
+  id: string; date: string; kind: "DEPOSIT" | "WITHDRAWAL" | "INCOME" | "EXPENSE"; amount: number; otherAccountId: string; description: string;
 }
 export interface InvestmentAccountDto {
   accountId: string; name: string; initialBalance: number;
