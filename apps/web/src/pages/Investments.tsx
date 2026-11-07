@@ -90,14 +90,13 @@ function AccountPanel({ a }: { a: InvestmentAccountDto }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem] text-sm">
             <thead className="text-left text-xs text-slate-500">
-              <tr><th className="py-1 font-normal">Fecha</th><th className="font-normal">Teórico</th><th className="font-normal">Real</th><th className="font-normal">Ganancia</th><th className="font-normal">Del período</th><th className="font-normal">Rend.</th><th /></tr>
+              <tr><th className="py-1 font-normal">Fecha</th><th className="font-normal">Teórico</th><th className="font-normal">Real</th><th className="font-normal">Ganancia</th><th /></tr>
             </thead>
             <tbody className="divide-y">
               {a.snapshots.map((s) => (
                 <tr key={s.id}>
                   <td className="py-1.5">{s.date}</td><td>{formatMoney(s.theoretical)}</td><td>{formatMoney(s.real)}</td>
-                  <td className={tone(s.gain)}>{signed(s.gain)}</td><td className={tone(s.periodGain)}>{signed(s.periodGain)}</td>
-                  <td className={tone(s.returnPct)}>{s.returnPct == null ? "—" : `${pct.format(s.returnPct)}%`}</td>
+                  <td className={tone(s.gain)}>{signed(s.gain)}</td>
                   <td><button className="text-slate-400 hover:text-rose-600" aria-label="Eliminar saldo" onClick={() => confirm("¿Eliminar este saldo real?") && guard(() => delSnap.mutateAsync(s.id))()}>✕</button></td>
                 </tr>
               ))}
