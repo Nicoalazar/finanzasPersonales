@@ -74,3 +74,18 @@ Notas: el plan free de Render duerme el servicio tras 15 min sin uso (el primer 
 - Cuando llega el resumen del banco, cargá la **cotización del dólar del resumen** (una sola por resumen, la del PDF) y las percepciones en *Ajuste*. Esa cotización reemplaza a las estimadas en todo: total, lo que te debe cada persona, presupuestos y compromisos. No se puede pagar un resumen con consumos USD sin cargarla.
 - El tercero debe `USD × cotización del resumen`; la percepción sobre consumos en dólares queda a tu cargo (va en *Ajuste* y en tu neto propio, pero no en ninguna categoría de presupuesto).
 - Con el resumen pagado, la cotización y el Ajuste quedan bloqueados; deshacé el pago para editarlos.
+
+## Backups
+`scripts/backup-db.sh` hace un `pg_dump` de producción (Neon, branch `main`) a `~/backups/finanzas/` y borra los de más de 30 días.
+Necesita Docker y la URL directa en `.env.neon` (`DATABASE_URL_UNPOOLED`); el dump queda con permisos 600 porque tiene todos tus datos.
+
+```bash
+scripts/backup-db.sh                       # manual
+crontab -e                                 # programado: todos los días a las 3:00
+# 0 3 * * * /ruta/al/repo/scripts/backup-db.sh >> $HOME/backups/finanzas/backup.log 2>&1
+```
+
+Restaurar en una base vacía (por ejemplo un branch nuevo de Neon o el Postgres local):
+```bash
+docker run --rm -i --network host postgres:18-alpine pg_restore --no-owner --no-privileges -d "<URL de la base destino>" < ~/backups/finanzas/finanzas-AAAA-MM-DD_HHMM.dump
+```
