@@ -6,7 +6,7 @@ import {
 import { prisma } from "../../plugins/db.js";
 import { requireAuth } from "../../plugins/auth.js";
 import { fromDbDate, num, parse, toDbDate } from "../../lib.js";
-import { accruals, personsSummary, reimbursementCategoryId } from "./service.js";
+import { accruals, netPaymentsCents, personsSummary, reimbursementCategoryId } from "./service.js";
 
 const currentMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 7);
 
@@ -51,11 +51,11 @@ export async function personRoutes(app: FastifyInstance) {
     const months = [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month)).map(({ cents, ...m }) => ({ ...m, total: fromCents(cents) }));
     const accrued = rows.filter((r) => r.month <= asOf).reduce((a, r) => a + r.cents, 0);
     const upcoming = rows.filter((r) => r.month > asOf).reduce((a, r) => a + r.cents, 0);
-    const paid = payments.reduce((a, p) => a + toCents(num(p.amount)), 0);
+    const paid = (await netPaymentsCents(person.id)).get(person.id) ?? 0;
     const detail: PersonDetailDto = {
       personId: person.id, name: person.name, accrued: fromCents(accrued), paid: fromCents(paid), balance: fromCents(accrued - paid), upcoming: fromCents(upcoming),
       months,
-      payments: payments.map((p) => ({ id: p.id, date: fromDbDate(p.date), amount: num(p.amount), note: p.note, accountId: p.transaction?.accountId ?? null })),
+      payments: payments.map((p) => ({ id: p.id, direction: p.direction, date: fromDbDate(p.date), amount: num(p.amount), note: p.note, accountId: p.transaction?.accountId ?? null })),
     };
     return detail;
   });
@@ -64,7 +64,12 @@ export async function personRoutes(app: FastifyInstance) {
     const body = parse(personChargeInput, req.body, reply);
     if (!body) return;
     if (!(await prisma.person.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Persona no encontrada" });
-    const c = await prisma.personCharge.create({ data: { ...body, personId: req.params.id } });
+    const categoryId = body.direction === "I_OWE" ? (body.categoryId ?? null) : null;
+    if (categoryId) {
+      const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+      if (!cat || cat.type !== "EXPENSE") return reply.code(400).send({ error: "Categoría inválida" });
+    }
+    const c = await prisma.personCharge.create({ data: { ...body, categoryId, personId: req.params.id } });
     return reply.code(201).send({ id: c.id });
   });
 
@@ -73,21 +78,26 @@ export async function personRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  /** Registra lo que te pagó la persona: queda como ingreso en la categoría Reintegros de la cuenta elegida. */
+  /**
+   * IN: lo que te pagó la persona, queda como ingreso en la categoría Reintegros de la cuenta elegida.
+   * OUT: lo que le pagaste vos; sale de la cuenta como gasto sin categoría (el gasto ya contó en su categoría al cargar la deuda).
+   */
   app.post<{ Params: { id: string } }>("/api/persons/:id/payments", async (req, reply) => {
     const body = parse(personPaymentInput, req.body, reply);
     if (!body) return;
     const person = await prisma.person.findUnique({ where: { id: req.params.id } });
     if (!person) return reply.code(404).send({ error: "Persona no encontrada" });
     if (!(await prisma.account.findUnique({ where: { id: body.accountId } }))) return reply.code(400).send({ error: "Cuenta inexistente" });
-    const categoryId = await reimbursementCategoryId();
+    const incoming = body.direction === "IN";
+    const categoryId = incoming ? await reimbursementCategoryId() : null;
+    const label = incoming ? `Pago de ${person.name}` : `Pago a ${person.name}`;
     const payment = await prisma.personPayment.create({
       data: {
-        personId: person.id, date: toDbDate(body.date), amount: body.amount, note: body.note,
+        personId: person.id, direction: body.direction, date: toDbDate(body.date), amount: body.amount, note: body.note,
         transaction: {
           create: {
-            date: toDbDate(body.date), period: body.date.slice(0, 7), amount: body.amount, type: "INCOME", status: "PAID",
-            description: body.note ? `Pago de ${person.name}: ${body.note}` : `Pago de ${person.name}`, categoryId, accountId: body.accountId,
+            date: toDbDate(body.date), period: body.date.slice(0, 7), amount: body.amount, type: incoming ? "INCOME" : "EXPENSE", status: "PAID",
+            description: body.note ? `${label}: ${body.note}` : label, categoryId, accountId: body.accountId,
           },
         },
       },

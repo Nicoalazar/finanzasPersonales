@@ -106,6 +106,6 @@ describe("gastos e ingresos directos", () => {
     const acc = (await call("GET", "/api/accounts")).json().find((a: any) => a.id === wallet);
     expect(inv.currentEstimate).toBe(750);
     expect(acc.balance).toBe(750);
-    expect(inv.movements).toHaveLength(0);
+    expect(inv.movements.map((m: any) => m.kind).sort()).toEqual(["EXPENSE", "INCOME"]);
   });
 });

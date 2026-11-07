@@ -39,6 +39,16 @@ enum PayslipKind {
   MONTHLY
   SAC
 }
+/// THEY_OWE: la persona me debe (su parte de algo que pagué yo). I_OWE: pagó algo por mí y le debo.
+enum DebtDirection {
+  THEY_OWE
+  I_OWE
+}
+/// IN: la persona me paga. OUT: yo le pago a ella.
+enum PaymentDirection {
+  IN
+  OUT
+}
 enum SharedPayer {
   ME
   PARTNER
@@ -88,6 +98,7 @@ model Category {
   purchases CardPurchase[]
   recurring RecurringExpense[]
   sharedKinds SharedKind[]
+  personCharges PersonCharge[]
 
   @@unique([name, type])
 }
@@ -217,6 +228,10 @@ model PersonCharge {
   id          String   @id @default(cuid())
   personId    String
   person      Person   @relation(fields: [personId], references: [id])
+  direction   DebtDirection @default(THEY_OWE)
+  /// solo I_OWE: es un gasto mío, cuenta en esta categoría el mes de cada cuota
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   description String
   totalAmount Decimal  @db.Decimal(14, 2)
   installmentCount Int @default(1)
@@ -227,6 +242,7 @@ model PersonPayment {
   id       String   @id @default(cuid())
   personId String
   person   Person   @relation(fields: [personId], references: [id])
+  direction PaymentDirection @default(IN)
   date     DateTime @db.Date
   amount   Decimal  @db.Decimal(14, 2)
   note     String   @default("")

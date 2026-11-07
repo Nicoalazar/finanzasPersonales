@@ -3,21 +3,24 @@ import { prisma } from "../../plugins/db.js";
 import { num } from "../../lib.js";
 import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 import { sharedCategoryCents } from "../shared/service.js";
+import { debtCategoryCents } from "../persons/service.js";
 
 /**
  * Gasto propio del mes por categoría (centavos; la clave null es "sin categoría").
  * Suma los movimientos de gasto y mi parte neta de las cuotas de tarjeta del resumen de ese mes.
  * El pago del resumen no se cuenta: no es un gasto nuevo, ya está en las compras.
  * De los gastos compartidos cuenta solo mi parte; mis pagos y el saldo con la pareja son caja, no categoría.
+ * Lo que otra persona pagó por mí cuenta en su categoría el mes de la deuda; cuando le devuelvo la plata es caja, no se cuenta de nuevo.
  */
 export async function categorySpending(month: string): Promise<Map<string | null, number>> {
-  const [txs, installments, shared, rates] = await Promise.all([
+  const [txs, installments, shared, rates, debts] = await Promise.all([
     prisma.transaction.groupBy({
-      by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null, sharedExpenseId: null, sharedMonth: null }, _sum: { amount: true },
+      by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null, sharedExpenseId: null, sharedMonth: null, personPaymentId: null }, _sum: { amount: true },
     }),
     prisma.cardInstallment.findMany({ where: { month, purchase: { sharedExpenseId: null } }, include: { purchase: { include: { shares: true } } } }),
     sharedCategoryCents(month),
     loadStatementRates({ month }),
+    debtCategoryCents(month),
   ]);
   const out = new Map<string | null, number>();
   const add = (k: string | null, cents: number) => out.set(k, (out.get(k) ?? 0) + cents);
@@ -29,6 +32,7 @@ export async function categorySpending(month: string): Promise<Map<string | null
     add(i.purchase.categoryId, Math.max(0, amount - others));
   }
   for (const [k, cents] of shared) add(k, cents);
+  for (const [k, cents] of debts) add(k, cents);
   return out;
 }
 

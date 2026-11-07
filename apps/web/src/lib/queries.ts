@@ -53,11 +53,11 @@ export const usePersonsSummary = () => useQuery({ queryKey: ["persons-summary"],
 export const usePersonDetail = (id: string | undefined) =>
   useQuery({ queryKey: ["person", id], enabled: !!id, queryFn: () => api<PersonDetailDto>(`/persons/${id}`) });
 export const useAddPayment = (personId: string) =>
-  useInvalidatingMutation((v: { date: string; amount: number; accountId: string; note: string }) => api(`/persons/${personId}/payments`, { method: "POST", json: v }));
+  useInvalidatingMutation((v: { direction: "IN" | "OUT"; date: string; amount: number; accountId: string; note: string }) => api(`/persons/${personId}/payments`, { method: "POST", json: v }));
 export const useDeletePayment = (personId: string) =>
   useInvalidatingMutation((id: string) => api(`/persons/${personId}/payments/${id}`, { method: "DELETE" }));
 export const useAddCharge = (personId: string) =>
-  useInvalidatingMutation((v: { description: string; totalAmount: number; installmentCount: number; firstMonth: string }) =>
+  useInvalidatingMutation((v: { direction: "THEY_OWE" | "I_OWE"; categoryId: string | null; description: string; totalAmount: number; installmentCount: number; firstMonth: string }) =>
     api(`/persons/${personId}/charges`, { method: "POST", json: v }));
 export const useDeleteCharge = (personId: string) =>
   useInvalidatingMutation((id: string) => api(`/persons/${personId}/charges/${id}`, { method: "DELETE" }));

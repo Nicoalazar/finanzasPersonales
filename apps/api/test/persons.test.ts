@@ -77,3 +77,38 @@ describe("vencimiento editado del resumen", () => {
     expect(d.months.map((m: any) => [m.month, m.total])).toEqual([["2026-04", 3500], ["2026-05", 5500]]);
   });
 });
+
+describe("lo que otra persona pagó por mí", () => {
+  let tomas: string, comida: string;
+  const budgetSpent = async (m: string) => (await call("GET", `/api/budgets?month=${m}`)).json().rows.find((r: any) => r.categoryId === comida)?.spent;
+
+  it("es una deuda mía: saldo negativo y gasto en su categoría ese mes", async () => {
+    tomas = (await call("POST", "/api/persons", { name: "Tomás" })).json().id;
+    comida = (await call("POST", "/api/categories", { name: "Comida", type: "EXPENSE" })).json().id;
+    const r = await call("POST", `/api/persons/${tomas}/charges`, { direction: "I_OWE", categoryId: comida, description: "Cena", totalAmount: 9000, firstMonth: "2026-06" });
+    expect(r.statusCode).toBe(201);
+    const s = (await call("GET", "/api/persons/summary?asOf=2026-06")).json().find((p: any) => p.personId === tomas);
+    expect(s).toMatchObject({ accrued: -9000, paid: 0, balance: -9000 });
+    const d = (await call("GET", `/api/persons/${tomas}?asOf=2026-06`)).json();
+    expect(d.months[0].lines[0]).toMatchObject({ kind: "DEBT", amount: -9000, source: "Pagó por mí" });
+    expect(await budgetSpent("2026-06")).toBe(9000);
+  });
+
+  it("devolverle la plata sale de la cuenta pero no vuelve a contar como gasto", async () => {
+    const before = (await call("GET", "/api/accounts")).json().find((a: any) => a.id === bank).balance;
+    const r = await call("POST", `/api/persons/${tomas}/payments`, { direction: "OUT", date: "2026-06-20", amount: 9000, accountId: bank });
+    expect(r.statusCode).toBe(201);
+    expect((await call("GET", "/api/accounts")).json().find((a: any) => a.id === bank).balance).toBe(before - 9000);
+    const tx = (await call("GET", "/api/transactions?month=2026-06")).json().items.find((t: any) => t.description === "Pago a Tomás");
+    expect(tx).toMatchObject({ type: "EXPENSE", categoryId: null });
+    expect(await budgetSpent("2026-06")).toBe(9000);
+    const s = (await call("GET", "/api/persons/summary?asOf=2026-06")).json().find((p: any) => p.personId === tomas);
+    expect(s).toMatchObject({ paid: -9000, balance: 0 });
+    expect((await call("GET", `/api/persons/${tomas}`)).json().payments[0].direction).toBe("OUT");
+  });
+
+  it("rechaza una categoría de ingresos", async () => {
+    const inc = (await call("GET", "/api/categories")).json().find((c: any) => c.type === "INCOME").id;
+    expect((await call("POST", `/api/persons/${tomas}/charges`, { direction: "I_OWE", categoryId: inc, description: "X", totalAmount: 1, firstMonth: "2026-06" })).statusCode).toBe(400);
+  });
+});

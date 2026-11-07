@@ -9,6 +9,7 @@ export interface Accrual { personId: string; month: string; cents: number; line:
 
 /**
  * Todo lo que cada persona debe por mes: su parte de las cuotas de tarjeta + cargos manuales en cuotas + lo que le toca de los recurrentes de un grupo suyo.
+ * Lo que pagó por mí (cargo I_OWE) entra en negativo: le debo.
  * Los recurrentes del grupo de Compartidos (Hogar) no van acá: van a Compartidos.
  * Las cuotas de tarjeta se imputan al mes en que VENCE el resumen (la tarjeta se paga a mes vencido):
  * el resumen de octubre que vence en noviembre cuenta en noviembre.
@@ -45,10 +46,14 @@ export async function accruals(personId?: string): Promise<Accrual[]> {
   for (const c of charges) {
     const amounts = splitInstallments(num(c.totalAmount), c.installmentCount);
     const months = installmentMonths(c.firstMonth, c.installmentCount);
+    const sign = c.direction === "I_OWE" ? -1 : 1;
     amounts.forEach((cents, idx) =>
       out.push({
-        personId: c.personId, month: months[idx]!, cents,
-        line: { kind: "CHARGE", refId: c.id, description: c.description, source: "Cargo manual", number: idx + 1, count: c.installmentCount, amount: fromCents(cents) },
+        personId: c.personId, month: months[idx]!, cents: sign * cents,
+        line: {
+          kind: sign < 0 ? "DEBT" : "CHARGE", refId: c.id, description: c.description, source: sign < 0 ? "Pagó por mí" : "Cargo manual",
+          number: idx + 1, count: c.installmentCount, amount: fromCents(sign * cents),
+        },
       }),
     );
   }
@@ -82,18 +87,38 @@ export async function reimbursementCategoryId(): Promise<string> {
   return (await prisma.category.create({ data: { name: "Reintegros", type: "INCOME", isReimbursement: true } })).id;
 }
 
-/** Saldo de cada persona al mes `asOf`: devengado hasta ese mes − pagos recibidos. */
+/** Pagos netos por persona: lo que me pagó − lo que le pagué (centavos). */
+export async function netPaymentsCents(personId?: string): Promise<Map<string, number>> {
+  const rows = await prisma.personPayment.groupBy({ by: ["personId", "direction"], where: personId ? { personId } : {}, _sum: { amount: true } });
+  const out = new Map<string, number>();
+  for (const r of rows) out.set(r.personId, (out.get(r.personId) ?? 0) + (r.direction === "OUT" ? -1 : 1) * toCents(num(r._sum.amount)));
+  return out;
+}
+
+/** Lo que otras personas pagaron por mí en el mes, por categoría (centavos): es gasto mío aunque no salga de mi cuenta. */
+export async function debtCategoryCents(month: string): Promise<Map<string | null, number>> {
+  const debts = await prisma.personCharge.findMany({ where: { direction: "I_OWE", firstMonth: { lte: month } } });
+  const out = new Map<string | null, number>();
+  for (const c of debts) {
+    const idx = installmentMonths(c.firstMonth, c.installmentCount).indexOf(month);
+    if (idx < 0) continue;
+    out.set(c.categoryId, (out.get(c.categoryId) ?? 0) + splitInstallments(num(c.totalAmount), c.installmentCount)[idx]!);
+  }
+  return out;
+}
+
+/** Saldo de cada persona al mes `asOf`: devengado hasta ese mes − pagos (netos). */
 export async function personsSummary(asOf: string): Promise<PersonSummaryDto[]> {
   const [persons, rows, payments] = await Promise.all([
     prisma.person.findMany({ orderBy: { name: "asc" } }),
     accruals(),
-    prisma.personPayment.groupBy({ by: ["personId"], _sum: { amount: true } }),
+    netPaymentsCents(),
   ]);
   return persons.map((p): PersonSummaryDto => {
     const mine = rows.filter((r) => r.personId === p.id);
     const accrued = mine.filter((r) => r.month <= asOf).reduce((a, r) => a + r.cents, 0);
     const upcoming = mine.filter((r) => r.month > asOf).reduce((a, r) => a + r.cents, 0);
-    const paid = toCents(num(payments.find((x) => x.personId === p.id)?._sum.amount));
+    const paid = payments.get(p.id) ?? 0;
     return { personId: p.id, name: p.name, accrued: fromCents(accrued), paid: fromCents(paid), balance: fromCents(accrued - paid), upcoming: fromCents(upcoming) };
   });
 }

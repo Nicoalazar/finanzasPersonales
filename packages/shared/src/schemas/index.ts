@@ -174,13 +174,21 @@ export interface StatementDto {
 export interface CommitmentDto { month: string; total: number; byCard: { cardId: string; total: number }[] }
 
 // ---- Personas ----
+/** IN: la persona me paga (ingreso en Reintegros). OUT: yo le pago lo que le debo (sale de mi cuenta). */
+export const paymentDirection = z.enum(["IN", "OUT"]);
+/** THEY_OWE: me debe. I_OWE: pagó algo por mí y le debo (es un gasto mío, va a su categoría). */
+export const debtDirection = z.enum(["THEY_OWE", "I_OWE"]);
 export const personPaymentInput = z.object({
+  direction: paymentDirection.default("IN"),
   date: isoDate,
   amount: z.number().finite().positive(),
   accountId: z.string().min(1),
   note: z.string().trim().max(200).default(""),
 });
 export const personChargeInput = z.object({
+  direction: debtDirection.default("THEY_OWE"),
+  /** solo para I_OWE: categoría de gasto donde cuenta */
+  categoryId: z.string().min(1).nullable().optional(),
   description: z.string().trim().min(1).max(200),
   totalAmount: z.number().finite().positive(),
   installmentCount: z.number().int().min(1).max(60).default(1),
@@ -190,16 +198,19 @@ export const asOfQuery = z.object({ asOf: yearMonth.optional() });
 
 export interface PersonSummaryDto {
   personId: string; name: string;
-  accrued: number; paid: number; /** accrued − paid: lo que te debe hasta el mes consultado */ balance: number;
+  /** neto devengado: lo que me debe − lo que le debo */ accrued: number;
+  /** neto pagado: lo que me pagó − lo que le pagué */ paid: number;
+  /** accrued − paid: positivo, me debe; negativo, le debo (hasta el mes consultado) */ balance: number;
   upcoming: number; /** cuotas de meses posteriores */
 }
 export interface PersonLineDto {
-  kind: "CARD" | "CHARGE" | "RECURRING"; refId: string; description: string; source: string; number: number; count: number; amount: number;
+  /** DEBT: pagó algo por mí; su amount es negativo (le debo) */
+  kind: "CARD" | "CHARGE" | "RECURRING" | "DEBT"; refId: string; description: string; source: string; number: number; count: number; amount: number;
   /** Consumo en USD cuyo monto en pesos todavía usa la cotización estimada. */
   estimated?: boolean;
 }
 export interface PersonMonthDto { month: string; total: number; lines: PersonLineDto[] }
-export interface PersonPaymentDto { id: string; date: string; amount: number; note: string; accountId: string | null }
+export interface PersonPaymentDto { id: string; direction: z.infer<typeof paymentDirection>; date: string; amount: number; note: string; accountId: string | null }
 export interface PersonDetailDto extends PersonSummaryDto { months: PersonMonthDto[]; payments: PersonPaymentDto[] }
 
 // ---- Recurrentes y grupos compartidos ----

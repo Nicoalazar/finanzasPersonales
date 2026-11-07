@@ -2,12 +2,31 @@ import { useState, type FormEvent } from "react";
 import { iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, monthLabel, today } from "../lib/format";
 import {
-  useAccounts, useAddCharge, useAddPayment, useDeleteCharge, useDeletePayment, usePersonDetail, usePersonsSummary,
+  useAccounts, useAddCharge, useAddPayment, useCategories, useCreatePerson, useDeleteCharge, useDeletePayment, usePersonDetail, usePersonsSummary,
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
 const field = "rounded border bg-white px-2 py-1.5 text-sm";
 const parseNum = (s: string) => Number(s.replace(",", ".")) || 0;
+const toggle = (on: boolean) => `rounded px-3 py-1 text-sm ${on ? "bg-slate-900 text-white" : "bg-slate-100"}`;
+
+function NewPerson({ onDone }: { onDone: (id: string) => void }) {
+  const create = useCreatePerson();
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <form className="flex flex-wrap items-center gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setError("");
+        try { const p = await create.mutateAsync(name.trim()); setName(""); onDone(p.id); } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+      }}>
+      <input className={`${field} w-48`} placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} required aria-label="Nombre de la persona" />
+      <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white" disabled={create.isPending}>+ Persona</button>
+      {error && <span className="text-sm text-rose-600">{error}</span>}
+    </form>
+  );
+}
 
 function Detail({ id }: { id: string }) {
   const { data: d } = usePersonDetail(id);
@@ -16,8 +35,11 @@ function Detail({ id }: { id: string }) {
   const delPayment = useDeletePayment(id);
   const addCharge = useAddCharge(id);
   const delCharge = useDeleteCharge(id);
-  const [pay, setPay] = useState({ date: today(), amount: "", accountId: "", note: "" });
-  const [charge, setCharge] = useState({ description: "", total: "", count: "1", firstMonth: currentMonth() });
+  const categories = useCategories().data?.filter((c) => c.type === "EXPENSE") ?? [];
+  const [pay, setPay] = useState({ direction: "IN" as "IN" | "OUT", date: today(), amount: "", accountId: "", note: "" });
+  const [charge, setCharge] = useState({ direction: "THEY_OWE" as "THEY_OWE" | "I_OWE", categoryId: "", description: "", total: "", count: "1", firstMonth: currentMonth() });
+  const owe = charge.direction === "I_OWE";
+  const payIn = pay.direction === "IN";
   const [showCharge, setShowCharge] = useState(false);
   const [error, setError] = useState("");
   const now = currentMonth();
@@ -35,45 +57,65 @@ function Detail({ id }: { id: string }) {
 
       <form className="grid grid-cols-2 items-center gap-2 rounded-xl bg-white p-3 shadow sm:flex sm:flex-wrap"
         onSubmit={guard(async () => {
-          await addPayment.mutateAsync({ date: pay.date, amount: parseNum(pay.amount), accountId: pay.accountId || accounts[0]?.id || "", note: pay.note });
+          await addPayment.mutateAsync({ direction: pay.direction, date: pay.date, amount: parseNum(pay.amount), accountId: pay.accountId || accounts[0]?.id || "", note: pay.note });
           setPay({ ...pay, amount: "", note: "" });
         })}>
-        <span className="col-span-2 text-sm font-medium">Registrar pago</span>
+        <span className="col-span-2 flex flex-wrap items-center gap-1 text-sm font-medium">Registrar pago
+          <button type="button" className={toggle(payIn)} onClick={() => setPay({ ...pay, direction: "IN" })}>Me pagó</button>
+          <button type="button" className={toggle(!payIn)} onClick={() => setPay({ ...pay, direction: "OUT" })}>Le pagué</button>
+        </span>
         <input className={field} type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} required />
         <NumberInput className={`${field} sm:w-28`} placeholder="Monto" value={pay.amount} onChange={(v) => setPay({ ...pay, amount: v })} required />
-        <select className={`${field} col-span-2`} value={pay.accountId || accounts[0]?.id || ""} onChange={(e) => setPay({ ...pay, accountId: e.target.value })} aria-label="Cuenta donde entra">
+        <select className={`${field} col-span-2`} value={pay.accountId || accounts[0]?.id || ""} onChange={(e) => setPay({ ...pay, accountId: e.target.value })} aria-label={payIn ? "Cuenta donde entra" : "Cuenta de donde sale"}>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
         <input className={`${field} col-span-2 sm:flex-1`} placeholder="Nota (opcional)" value={pay.note} onChange={(e) => setPay({ ...pay, note: e.target.value })} />
         <button className="col-span-2 rounded bg-slate-900 px-3 py-1.5 text-sm text-white" disabled={accounts.length === 0}>Guardar</button>
-        <p className="col-span-2 w-full text-xs text-slate-500">Se carga como ingreso en la categoría “Reintegros” de la cuenta elegida.</p>
+        <p className="col-span-2 w-full text-xs text-slate-500">
+          {payIn ? "Se carga como ingreso en la categoría “Reintegros” de la cuenta elegida."
+            : "Sale de la cuenta elegida. No vuelve a contar como gasto: ya contó en su categoría cuando cargaste lo que pagó por vos."}
+        </p>
       </form>
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Detalle por mes</h3>
-          {!showCharge && <button className="rounded bg-white px-3 py-1 text-sm shadow" onClick={() => setShowCharge(true)}>+ Cargo manual</button>}
+          {!showCharge && <button className="rounded bg-white px-3 py-1 text-sm shadow" onClick={() => setShowCharge(true)}>+ Cargo o deuda</button>}
         </div>
         {showCharge && (
           <form className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow"
             onSubmit={guard(async () => {
-              await addCharge.mutateAsync({ description: charge.description, totalAmount: parseNum(charge.total), installmentCount: Math.max(1, Number(charge.count) || 1), firstMonth: charge.firstMonth });
+              await addCharge.mutateAsync({
+                direction: charge.direction, categoryId: owe ? charge.categoryId || null : null, description: charge.description,
+                totalAmount: parseNum(charge.total), installmentCount: Math.max(1, Number(charge.count) || 1), firstMonth: charge.firstMonth,
+              });
               setShowCharge(false);
-              setCharge({ description: "", total: "", count: "1", firstMonth: currentMonth() });
+              setCharge({ ...charge, description: "", total: "", count: "1" });
             })}>
-            <input className={`${field} flex-1`} placeholder="Descripción (ej. Liquidación final)" value={charge.description} onChange={(e) => setCharge({ ...charge, description: e.target.value })} required />
+            <div className="flex w-full gap-1">
+              <button type="button" className={toggle(!owe)} onClick={() => setCharge({ ...charge, direction: "THEY_OWE" })}>Me debe</button>
+              <button type="button" className={toggle(owe)} onClick={() => setCharge({ ...charge, direction: "I_OWE" })}>Pagó por mí (le debo)</button>
+            </div>
+            <input className={`${field} flex-1`} placeholder={owe ? "Descripción (ej. Cena del sábado)" : "Descripción (ej. Liquidación final)"} value={charge.description} onChange={(e) => setCharge({ ...charge, description: e.target.value })} required />
             <NumberInput className={`${field} w-28`} placeholder="Total" value={charge.total} onChange={(v) => setCharge({ ...charge, total: v })} required />
             <label className="text-xs text-slate-500">Cuotas <input className={`${field} w-16`} type="number" min={1} max={60} value={charge.count} onChange={(e) => setCharge({ ...charge, count: e.target.value })} /></label>
-            <label className="text-xs text-slate-500">Desde <input className={field} type="month" value={charge.firstMonth} onChange={(e) => setCharge({ ...charge, firstMonth: e.target.value })} required /></label>
+            {owe && (
+              <select className={field} value={charge.categoryId} onChange={(e) => setCharge({ ...charge, categoryId: e.target.value })} aria-label="Categoría">
+                <option value="">Sin categoría</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <label className="text-xs text-slate-500">{owe ? "Mes" : "Desde"} <input className={field} type="month" value={charge.firstMonth} onChange={(e) => setCharge({ ...charge, firstMonth: e.target.value })} required /></label>
             <button className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">Guardar</button>
             <button type="button" className="text-sm text-slate-500" onClick={() => setShowCharge(false)}>Cancelar</button>
+            {owe && <p className="w-full text-xs text-slate-500">Cuenta como gasto tuyo en esa categoría el mes de cada cuota, aunque no salga de tu cuenta. Cuando le devuelvas la plata, registralo con “Le pagué”.</p>}
           </form>
         )}
-        {d.months.length === 0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow">Sin deudas registradas. Asignale una parte al cargar una compra con tarjeta, o creá un cargo manual.</p>}
+        {d.months.length === 0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow">Sin deudas registradas. Asignale una parte al cargar una compra con tarjeta, o cargá un cargo o lo que pagó por vos.</p>}
         {d.months.map((m) => (
           <div key={m.month} className={`rounded-xl bg-white shadow ${m.month > now ? "opacity-70" : ""}`}>
             <div className="flex justify-between gap-3 border-b px-4 py-2 text-sm font-medium">
-              <span>{monthLabel(m.month)}{m.month > now && " · próximo"}</span><span>{formatMoney(m.total)}</span>
+              <span>{monthLabel(m.month)}{m.month > now && " · próximo"}</span><span className={m.total < 0 ? "text-rose-600" : ""}>{formatMoney(m.total)}</span>
             </div>
             {m.lines.map((l, i) => (
               <div key={i} className="flex items-center gap-2 py-1.5 pl-4 pr-2 text-sm">
@@ -82,9 +124,9 @@ function Detail({ id }: { id: string }) {
                   <div className="text-xs text-slate-500">{l.source}{l.kind !== "RECURRING" && ` · cuota ${l.number}/${l.count}`}
                     {l.estimated && <span className="text-amber-600" title="Consumo en USD: usa la cotización estimada hasta que se cargue la del resumen"> · estimado</span>}</div>
                 </div>
-                <span className="shrink-0 tabular-nums">{formatMoney(l.amount)}</span>
-                {l.kind !== "CHARGE" && <span className="w-8 shrink-0" aria-hidden />}
-                {l.kind === "CHARGE" && (
+                <span className={`shrink-0 tabular-nums ${l.amount < 0 ? "text-rose-600" : ""}`}>{formatMoney(l.amount)}</span>
+                {l.kind !== "CHARGE" && l.kind !== "DEBT" && <span className="w-8 shrink-0" aria-hidden />}
+                {(l.kind === "CHARGE" || l.kind === "DEBT") && (
                   <button className={iconBtnDanger} aria-label="Eliminar cargo" title="Elimina el cargo completo"
                     onClick={() => confirm(`¿Eliminar el cargo "${l.description}" completo?`) && guard(() => delCharge.mutateAsync(l.refId))()}>✕</button>
                 )}
@@ -96,15 +138,15 @@ function Detail({ id }: { id: string }) {
 
       {d.payments.length > 0 && (
         <section className="space-y-2">
-          <h3 className="font-semibold">Pagos recibidos</h3>
+          <h3 className="font-semibold">Pagos</h3>
           <div className="divide-y rounded-xl bg-white shadow">
             {d.payments.map((p) => (
               <div key={p.id} className="flex items-center gap-3 py-1.5 pl-4 pr-2 text-sm">
                 <span className="w-24 text-xs text-slate-500">{p.date}</span>
-                <span className="flex-1 truncate text-slate-600">{p.note}</span>
-                <span className="font-medium text-emerald-600">{formatMoney(p.amount)}</span>
-                <button className={iconBtnDanger} aria-label="Eliminar pago" title="También elimina el ingreso"
-                  onClick={() => confirm("¿Eliminar el pago? También se elimina el ingreso asociado.") && guard(() => delPayment.mutateAsync(p.id))()}>✕</button>
+                <span className="flex-1 truncate text-slate-600">{p.direction === "OUT" ? "Le pagaste" : "Te pagó"}{p.note && ` · ${p.note}`}</span>
+                <span className={`font-medium ${p.direction === "OUT" ? "text-rose-600" : "text-emerald-600"}`}>{formatMoney(p.amount)}</span>
+                <button className={iconBtnDanger} aria-label="Eliminar pago" title="También elimina el movimiento de la cuenta"
+                  onClick={() => confirm("¿Eliminar el pago? También se elimina el movimiento de la cuenta.") && guard(() => delPayment.mutateAsync(p.id))()}>✕</button>
               </div>
             ))}
           </div>
@@ -119,18 +161,20 @@ export function Persons() {
   const [selected, setSelected] = useState<string>();
   const current = people.find((p) => p.personId === selected) ?? people[0];
 
-  if (people.length === 0)
-    return <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Todavía no hay personas. Creá una al cargar una compra con tarjeta repartida.</p>;
-
   return (
     <main className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold">Personas</h1>
+        <NewPerson onDone={setSelected} />
+      </div>
+      {people.length === 0 && <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Todavía no hay personas. Creá una acá o al cargar una compra con tarjeta repartida.</p>}
       <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
         {people.map((p) => (
           <button key={p.personId} onClick={() => setSelected(p.personId)}
             className={`rounded-xl p-4 text-left shadow ${p.personId === current?.personId ? "bg-slate-900 text-white" : "bg-white"}`}>
             <div className="text-sm opacity-80">{p.name}</div>
-            <div className="text-lg font-semibold">{p.balance >= 0 ? "Te debe " : "A favor "}{formatMoney(Math.abs(p.balance))}</div>
-            <div className="text-xs opacity-70">Devengado {formatMoney(p.accrued)} · Pagado {formatMoney(p.paid)}{p.upcoming > 0 && ` · Próximas ${formatMoney(p.upcoming)}`}</div>
+            <div className="text-lg font-semibold">{p.balance === 0 ? "Sin saldo" : p.balance > 0 ? `Te debe ${formatMoney(p.balance)}` : `Le debés ${formatMoney(-p.balance)}`}</div>
+            <div className="text-xs opacity-70">Devengado {formatMoney(p.accrued)} · Pagado {formatMoney(p.paid)}{p.upcoming !== 0 && ` · Próximas ${formatMoney(p.upcoming)}`}</div>
           </button>
         ))}
       </section>
