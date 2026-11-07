@@ -5,7 +5,7 @@ import { MonthNav } from "../components/MonthNav";
 import { iconBtn, iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatMoney, formatRate, formatUsd, monthLabel, shiftMonth } from "../lib/format";
 import {
-  useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
+  useAccounts, useCards, useCommitments, useCreateCard, useDeletePurchase, useMovePurchase, usePatchCard, usePatchStatement, usePayStatement, useStatement, useUnpayStatement,
 } from "../lib/queries";
 import { NumberInput } from "../components/NumberInput";
 
@@ -181,7 +181,8 @@ export function Cards() {
   const [month, setMonth] = useState(currentMonth());
   const [adding, setAdding] = useState(false);
   const [newCard, setNewCard] = useState(false);
-  const card = cards.find((c) => c.id === cardId) ?? cards[0];
+  const card = cards.find((c) => c.id === cardId) ?? cards[0]; // la API trae primero la predeterminada
+  const patchCard = usePatchCard();
   const st = useStatement(card?.id, month).data;
   const commitments = useCommitments(currentMonth()).data ?? [];
   const nameOf = (id: string) => cards.find((c) => c.id === id)?.name ?? "?";
@@ -203,7 +204,13 @@ export function Cards() {
           <MonthNav month={month} onChange={setMonth}>
             {!adding && <button className="rounded bg-slate-900 px-3 py-1.5 text-white" onClick={() => setAdding(true)}>+ Compra</button>}
           </MonthNav>
-          <p className="-mt-2 text-xs text-slate-500">Por defecto cierra el día {card.closingDay} y vence el {card.dueDay}</p>
+          <p className="-mt-2 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+            <span>Por defecto cierra el día {card.closingDay} y vence el {card.dueDay}</span>
+            {card.isDefault ? <span className="text-amber-600" title="Se muestra primero en todas las pantallas">★ Predeterminada</span> : (
+              cards.length > 1 && <button className="underline hover:text-slate-900" onClick={() => patchCard.mutate({ id: card.id, patch: { isDefault: true } })}
+                title="Se muestra primero en todas las pantallas">☆ Usar como predeterminada</button>
+            )}
+          </p>
           {adding && <PurchaseForm card={card} onDone={() => setAdding(false)} />}
           {st && <StatementView key={`${card.id}-${month}`} card={card} st={st} month={month} />}
         </>

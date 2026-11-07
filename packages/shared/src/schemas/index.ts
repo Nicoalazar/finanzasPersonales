@@ -84,7 +84,8 @@ export const cardInput = z.object({
   isThirdParty: z.boolean().default(false),
   payAccountId: z.string().nullable().optional(),
 });
-export const cardPatch = cardInput.partial();
+/** isDefault: true la marca como predeterminada (se muestra primero) y desmarca las demás. */
+export const cardPatch = cardInput.partial().extend({ isDefault: z.boolean().optional() });
 
 export const personInput = z.object({ name: z.string().trim().min(1).max(80) });
 
@@ -137,7 +138,7 @@ export const statementPay = z.object({ month: yearMonth, date: isoDate, accountI
 export type CardInput = z.infer<typeof cardInput>;
 export type PurchaseInput = z.infer<typeof purchaseInput>;
 
-export interface CardDto { id: string; name: string; closingDay: number; dueDay: number; stampTaxRate: number; isThirdParty: boolean; payAccountId: string | null }
+export interface CardDto { id: string; name: string; closingDay: number; dueDay: number; stampTaxRate: number; isThirdParty: boolean; isDefault: boolean; payAccountId: string | null }
 /** Cotización sugerida para una compra USD: de la API, del último resumen de la tarjeta o ninguna (se carga a mano). */
 export interface FxQuoteDto { rate: number | null; source: "api" | "statement" | null; asOf: string | null }
 export interface PersonDto { id: string; name: string }

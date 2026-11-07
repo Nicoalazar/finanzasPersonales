@@ -14,7 +14,7 @@ import { resolveUsdEstimate } from "../fx/service.js";
 
 const dto = (c: CreditCard): CardDto => ({
   id: c.id, name: c.name, closingDay: c.closingDay, dueDay: c.dueDay, stampTaxRate: num(c.stampTaxRate),
-  isThirdParty: c.isThirdParty, payAccountId: c.payAccountId,
+  isThirdParty: c.isThirdParty, isDefault: c.isDefault, payAccountId: c.payAccountId,
 });
 
 export async function cardRoutes(app: FastifyInstance) {
@@ -28,7 +28,8 @@ export async function cardRoutes(app: FastifyInstance) {
     return { month: await resolveFirstMonth(card, q.date) };
   });
 
-  app.get("/api/cards", async () => (await prisma.creditCard.findMany({ orderBy: { name: "asc" } })).map(dto));
+  /** La predeterminada primero; el resto por nombre. */
+  app.get("/api/cards", async () => (await prisma.creditCard.findMany({ orderBy: [{ isDefault: "desc" }, { name: "asc" }] })).map(dto));
 
   app.post("/api/cards", async (req, reply) => {
     const body = parse(cardInput, req.body, reply);
@@ -40,6 +41,8 @@ export async function cardRoutes(app: FastifyInstance) {
     const body = parse(cardPatch, req.body, reply);
     if (!body) return;
     if (!(await prisma.creditCard.findUnique({ where: { id: req.params.id } }))) return reply.code(404).send({ error: "Tarjeta no encontrada" });
+    // solo puede haber una predeterminada
+    if (body.isDefault) await prisma.creditCard.updateMany({ where: { isDefault: true, id: { not: req.params.id } }, data: { isDefault: false } });
     return dto(await prisma.creditCard.update({ where: { id: req.params.id }, data: body }));
   });
 

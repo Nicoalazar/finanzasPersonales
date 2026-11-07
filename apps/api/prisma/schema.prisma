@@ -146,6 +146,8 @@ model CreditCard {
   dueDay        Int
   stampTaxRate  Decimal  @default(0.007) @db.Decimal(6, 4)
   isThirdParty  Boolean  @default(false)
+  /// la tarjeta que se muestra primero (una sola)
+  isDefault     Boolean  @default(false)
   payAccountId  String?
   payAccount    Account? @relation(fields: [payAccountId], references: [id])
   purchases     CardPurchase[]

@@ -81,3 +81,16 @@ describe("compromisos", () => {
     expect(st.subtotal).toBe(0);
   });
 });
+
+describe("tarjeta predeterminada", () => {
+  it("se muestra primero y hay una sola", async () => {
+    const amex = (await call("POST", "/api/cards", { name: "Amex", closingDay: 26, dueDay: 9 })).json().id;
+    const names = async () => (await call("GET", "/api/cards")).json().map((c: any) => c.name);
+    expect((await names())[0]).toBe("Amex");
+    expect((await call("PATCH", `/api/cards/${visa}`, { isDefault: true })).json().isDefault).toBe(true);
+    expect((await names())[0]).toBe("Visa");
+    await call("PATCH", `/api/cards/${amex}`, { isDefault: true });
+    const cards = (await call("GET", "/api/cards")).json();
+    expect(cards.filter((c: any) => c.isDefault).map((c: any) => c.name)).toEqual(["Amex"]);
+  });
+});

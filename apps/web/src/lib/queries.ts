@@ -36,6 +36,8 @@ export const useCommitments = (from: string) =>
 
 export const useCreateCard = () =>
   useInvalidatingMutation((v: { name: string; closingDay: number; dueDay: number }) => api("/cards", { method: "POST", json: v }));
+export const usePatchCard = () =>
+  useInvalidatingMutation((v: { id: string; patch: Partial<Pick<CardDto, "name" | "closingDay" | "dueDay" | "isDefault">> }) => api(`/cards/${v.id}`, { method: "PATCH", json: v.patch }));
 export const useCreatePerson = () => useInvalidatingMutation<string, PersonDto>((name: string) => api<PersonDto>("/persons", { method: "POST", json: { name } }));
 export const useCreatePurchase = () => useInvalidatingMutation((v: Partial<PurchaseInput>) => api("/card-purchases", { method: "POST", json: v }));
 export const useDeletePurchase = () => useInvalidatingMutation((id: string) => api(`/card-purchases/${id}`, { method: "DELETE" }));
