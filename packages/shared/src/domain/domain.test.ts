@@ -21,6 +21,8 @@ describe("resumen de tarjeta y hogar", () => {
   it("impuesto 7‰ del subtotal Visa", () => {
     const r = computeStatement({ installmentsCents: [37623123], stampTaxRate: 0.007 });
     expect(r.stampTaxCents).toBe(263362);
+    const usd = computeStatement({ installmentsCents: [100000], usdArsCents: 50000, stampTaxRate: 0.007, adjustmentCents: 300, thirdPartyCents: 20000, refundsCents: 1000 });
+    expect(usd).toEqual({ subtotalCents: 100000, stampTaxCents: 700, arsTotalCents: 101000, totalCents: 151000, netOwnCents: 130000 });
   });
   it("Hogar 35%", () => {
     expect(householdShareCents(121556465, 35)).toBe(42544763);

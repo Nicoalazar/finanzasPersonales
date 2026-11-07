@@ -82,15 +82,17 @@ export async function buildStatement(cardId: string, month: string): Promise<Sta
   const thirdPartyCents = [...byPerson.values()].reduce((a, p) => a + p.cents, 0);
   const adjustmentCents = toCents(num(stored?.adjustment));
   const refundsCents = toCents(num(stored?.refunds));
+  // el impuesto de sellos es solo sobre los consumos en pesos
   const s = computeStatement({
-    installmentsCents: items.map((i) => toCents(i.amount)),
+    installmentsCents: items.filter((i) => i.usdAmount == null).map((i) => toCents(i.amount)), usdArsCents,
     stampTaxRate: num(card.stampTaxRate), adjustmentCents, thirdPartyCents, refundsCents,
   });
   return {
     cardId, month, items,
     subtotal: fromCents(s.subtotalCents), stampTax: fromCents(s.stampTaxCents), adjustment: fromCents(adjustmentCents),
-    total: fromCents(s.totalCents),
+    arsTotal: fromCents(s.arsTotalCents), total: fromCents(s.totalCents),
     usdSubtotal: fromCents(usdCents), usdSubtotalArs: fromCents(usdArsCents), usdRate: stored?.usdRate != null ? num(stored.usdRate) : null, usdEstimated,
+    usdEffectiveRate: usdCents > 0 ? Math.round((usdArsCents / usdCents) * 100) / 100 : null,
     thirdParty: fromCents(thirdPartyCents), refunds: fromCents(refundsCents), netOwn: fromCents(s.netOwnCents),
     byPerson: [...byPerson.values()].map((p) => ({ personId: p.personId, name: p.name, amount: fromCents(p.cents) })),
     paidAt: stored?.paidAt ? fromDbDate(stored.paidAt) : null,

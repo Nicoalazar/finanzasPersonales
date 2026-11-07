@@ -102,7 +102,7 @@ describe("resumen con consumos USD", () => {
   it("mientras no hay cotización real convierte con la estimada y lo marca", async () => {
     const st = await statement();
     expect(st).toMatchObject({
-      subtotal: 190000, stampTax: 1330, total: 191330, thirdParty: 120000, netOwn: 71330,
+      subtotal: 10000, stampTax: 70, arsTotal: 10070, total: 190070, thirdParty: 120000, netOwn: 70070, usdEffectiveRate: 1200,
       usdSubtotal: 150, usdSubtotalArs: 180000, usdRate: null, usdEstimated: true,
     });
     const hotel = st.items.find((i: any) => i.description === "Hotel");
@@ -132,9 +132,9 @@ describe("resumen con consumos USD", () => {
 
   it("la cotización real reemplaza a las estimadas y recalcula todo", async () => {
     const st = (await call("PATCH", `/api/cards/${visa}/statement`, { month: "2026-03", usdRate: 1250, adjustment: 54000 })).json();
-    // 10.000 + 50×1250 + 100×1250 = 197.500; sellos 7‰ = 1.382,50; + percepción 54.000 en Ajuste
+    // pesos: 10.000 + sellos 7‰ (solo sobre los pesos) 70 + percepción 54.000 en Ajuste = 64.070; + USD 150×1250 = 187.500
     expect(st).toMatchObject({
-      subtotal: 197500, stampTax: 1382.5, adjustment: 54000, total: 252882.5,
+      subtotal: 10000, stampTax: 70, adjustment: 54000, arsTotal: 64070, total: 251570, usdEffectiveRate: 1250,
       usdSubtotal: 150, usdSubtotalArs: 187500, usdRate: 1250, usdEstimated: false,
     });
     expect(st.items.find((i: any) => i.description === "Hotel")).toMatchObject({ amount: 62500, rate: 1250 });
@@ -145,7 +145,7 @@ describe("resumen con consumos USD", () => {
     expect(st.thirdParty).toBe(125000);
     expect(st.byPerson).toEqual([{ personId: camila, name: "Camila", amount: 125000 }]);
     // netOwn = total − terceros: incluye los 54.000 de percepción, que no están en ninguna categoría
-    expect(st.netOwn).toBe(127882.5);
+    expect(st.netOwn).toBe(126570);
     const [sum] = (await call("GET", "/api/persons/summary?asOf=2026-04")).json();
     expect(sum.accrued).toBe(125000);
     const detail = (await call("GET", `/api/persons/${camila}?asOf=2026-04`)).json();
@@ -172,10 +172,10 @@ describe("resumen con consumos USD", () => {
   it("al pagar sale un solo movimiento en pesos y quedan bloqueados cotización y ajuste", async () => {
     const pay = await call("POST", `/api/cards/${visa}/statement/pay`, { month: "2026-03", date: "2026-04-05", accountId: bank });
     expect(pay.statusCode).toBe(200);
-    expect((await call("GET", "/api/accounts")).json()[0].balance).toBe(-252882.5);
+    expect((await call("GET", "/api/accounts")).json()[0].balance).toBe(-251570);
     expect((await call("PATCH", `/api/cards/${visa}/statement`, { month: "2026-03", usdRate: 1300 })).statusCode).toBe(409);
     expect((await call("PATCH", `/api/cards/${visa}/statement`, { month: "2026-03", adjustment: 1 })).statusCode).toBe(409);
-    expect((await statement()).total).toBe(252882.5);
+    expect((await statement()).total).toBe(251570);
     // deshacer el pago libera la edición
     await call("DELETE", `/api/cards/${visa}/statement/pay?month=2026-03`);
     expect((await call("PATCH", `/api/cards/${visa}/statement`, { month: "2026-03", usdRate: 1300 })).statusCode).toBe(200);
@@ -187,9 +187,9 @@ describe("resumen con consumos USD", () => {
   });
 
   it("los compromisos futuros usan el neto con los dólares convertidos", async () => {
-    // 190.000 + 1.330 de sellos + 54.000 de Ajuste − 120.000 del tercero
+    // 10.000 + 70 de sellos + 54.000 de Ajuste + 180.000 en USD (estimados) − 120.000 del tercero
     const [m] = (await call("GET", "/api/cards/commitments?from=2026-03&months=1")).json();
-    expect(m.byCard.find((c: any) => c.cardId === visa).total).toBe(125330);
+    expect(m.byCard.find((c: any) => c.cardId === visa).total).toBe(124070);
   });
 });
 

@@ -161,9 +161,12 @@ export interface StatementItemDto {
 }
 export interface StatementDto {
   cardId: string; month: string; items: StatementItemDto[];
-  subtotal: number; stampTax: number; adjustment: number; total: number;
+  /** Orden del resumen del banco: subtotal (solo pesos) + impuesto + ajuste = arsTotal; + usdSubtotalArs = total (lo que se paga). */
+  subtotal: number; stampTax: number; adjustment: number; arsTotal: number; total: number;
   /** Consumos USD del resumen: dólares, su equivalente en pesos y la cotización real (null hasta cargarla). */
   usdSubtotal: number; usdSubtotalArs: number; usdRate: number | null;
+  /** cotización con la que se calculan hoy los consumos USD: la real o, mientras no esté, la estimada (null si no hay USD) */
+  usdEffectiveRate: number | null;
   /** true si hay consumos USD y todavía no hay cotización real: los pesos son una estimación. */
   usdEstimated: boolean;
   thirdParty: number; refunds: number; netOwn: number;

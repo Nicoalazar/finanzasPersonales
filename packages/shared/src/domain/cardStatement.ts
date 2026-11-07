@@ -1,7 +1,10 @@
 import { toCents } from "./money.js";
 
 export interface StatementInput {
+  /** cuotas en pesos */
   installmentsCents: number[];
+  /** consumos en USD ya pasados a pesos: no pagan el impuesto de sellos */
+  usdArsCents?: number;
   stampTaxRate: number;
   adjustmentCents?: number;
   thirdPartyCents?: number;
@@ -11,17 +14,24 @@ export interface StatementInput {
 export interface StatementResult {
   subtotalCents: number;
   stampTaxCents: number;
+  /** subtotal en pesos + impuesto + ajuste */
+  arsTotalCents: number;
+  /** lo que se paga: total en pesos + consumos en USD en pesos */
   totalCents: number;
   netOwnCents: number;
 }
 
-/** Subtotal + impuesto (7‰) + ajuste = total del resumen; neto propio = total − terceros − reintegros. */
+/**
+ * Como el resumen del banco: subtotal en pesos + impuesto (7‰ sobre los pesos) + ajuste = total en pesos;
+ * + consumos en USD a la cotización del resumen = total a pagar; neto propio = total − terceros − reintegros.
+ */
 export function computeStatement(i: StatementInput): StatementResult {
   const subtotalCents = i.installmentsCents.reduce((a, b) => a + b, 0);
   const stampTaxCents = Math.round(subtotalCents * i.stampTaxRate);
-  const totalCents = subtotalCents + stampTaxCents + (i.adjustmentCents ?? 0);
+  const arsTotalCents = subtotalCents + stampTaxCents + (i.adjustmentCents ?? 0);
+  const totalCents = arsTotalCents + (i.usdArsCents ?? 0);
   const netOwnCents = totalCents - (i.thirdPartyCents ?? 0) - (i.refundsCents ?? 0);
-  return { subtotalCents, stampTaxCents, totalCents, netOwnCents };
+  return { subtotalCents, stampTaxCents, arsTotalCents, totalCents, netOwnCents };
 }
 
 /** Parte de un tercero sobre un monto: porcentaje (0-100) o monto fijo. */

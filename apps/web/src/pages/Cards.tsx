@@ -102,17 +102,21 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
       </div>
 
       <div className="card divide-y">
-        <div className={row}><span>Subtotal</span><span>{formatMoney(st.subtotal)}</span></div>
+        <div className={row}><span>Subtotal <span className="text-xs text-muted">(consumos en pesos)</span></span><span>{formatMoney(st.subtotal)}</span></div>
+        <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰ <span className="text-xs text-muted">(del subtotal)</span></span><span>{formatMoney(st.stampTax)}</span></div>
+        <div className={`${row} items-center`}>
+          <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
+          <NumberInput id="adj" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={adjustment} disabled={!!st.paidAt}
+            onChange={setAdjustment} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
+        </div>
+        <div className={`${row} font-semibold`}><span>Total del resumen en pesos</span><span>{formatMoney(st.arsTotal)}</span></div>
         {st.usdSubtotal > 0 && (
           <>
-            <div className={row}>
-              <span>Consumos en USD <span className="text-xs text-muted">(incluidos en el subtotal)</span></span>
-              <span>{formatUsd(st.usdSubtotal)} ≈ {formatMoney(st.usdSubtotalArs)}</span>
-            </div>
+            <div className={row}><span>Consumos en USD</span><span>{formatUsd(st.usdSubtotal)}</span></div>
             <div className={`${row} items-center`}>
               <label htmlFor="usdRate">
                 Cotización del dólar del resumen
-                {st.usdEstimated && <span className="tag ml-2 bg-warn-soft text-warn-ink">estimada</span>}
+                {st.usdEstimated && <span className="tag ml-2 bg-warn-soft text-warn-ink">estimada{st.usdEffectiveRate != null && ` ${formatRate(st.usdEffectiveRate)}`}</span>}
               </label>
               <NumberInput id="usdRate" className={`${field} w-28 shrink-0 text-right sm:w-32`} placeholder="la del banco" value={usdRate} disabled={!!st.paidAt}
                 onChange={setUsdRate}
@@ -124,15 +128,12 @@ function StatementView({ card, st, month }: { card: CardDto; st: StatementDto; m
             {st.usdEstimated && (
               <p className="px-4 py-1.5 text-xs text-warn">Cada consumo usa la cotización estimada al cargarlo. Cargá la del resumen del banco para fijar el total y poder pagarlo.</p>
             )}
+            <div className={`${row} font-semibold`}>
+              <span>Subtotal con consumos en dólares <span className="text-xs font-normal text-muted">({formatMoney(st.usdSubtotalArs)} en USD{st.usdEstimated ? ", estimado" : ""})</span></span>
+              <span>{formatMoney(st.total)}</span>
+            </div>
           </>
         )}
-        <div className={row}><span>Impuesto {(card.stampTaxRate * 1000).toFixed(0)}‰</span><span>{formatMoney(st.stampTax)}</span></div>
-        <div className={`${row} items-center`}>
-          <label htmlFor="adj">Ajuste (percepciones, intereses)</label>
-          <NumberInput id="adj" className={`${field} w-28 shrink-0 text-right sm:w-32`} value={adjustment} disabled={!!st.paidAt}
-            onChange={setAdjustment} onBlur={() => parseNum(adjustment) !== st.adjustment && guard(() => patch.mutateAsync({ month, adjustment: parseNum(adjustment) }))} />
-        </div>
-        <div className={`${row} font-semibold`}><span>Total del resumen</span><span>{formatMoney(st.total)}</span></div>
         <div className={row}><span>Corresponde a terceros</span><span>− {formatMoney(st.thirdParty)}</span></div>
         <div className={`${row} items-center`}>
           <label htmlFor="ref">Reintegros</label>
