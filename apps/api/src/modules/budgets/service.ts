@@ -8,18 +8,19 @@ import { debtCategoryCents } from "../persons/service.js";
 /**
  * Gasto propio del mes por categoría (centavos; la clave null es "sin categoría").
  * Suma los movimientos de gasto y mi parte neta de las cuotas de tarjeta del resumen de ese mes.
+ * `cardMonth` permite tomar las cuotas de tarjeta de otro mes (por defecto, el mismo).
  * El pago del resumen no se cuenta: no es un gasto nuevo, ya está en las compras.
  * De los gastos compartidos cuenta solo mi parte; mis pagos y el saldo con la pareja son caja, no categoría.
  * Lo que otra persona pagó por mí cuenta en su categoría el mes de la deuda; cuando le devuelvo la plata es caja, no se cuenta de nuevo.
  */
-export async function categorySpending(month: string): Promise<Map<string | null, number>> {
+export async function categorySpending(month: string, cardMonth: string = month): Promise<Map<string | null, number>> {
   const [txs, installments, shared, rates, debts] = await Promise.all([
     prisma.transaction.groupBy({
       by: ["categoryId"], where: { period: month, type: "EXPENSE", statementId: null, sharedExpenseId: null, sharedMonth: null, personPaymentId: null }, _sum: { amount: true },
     }),
-    prisma.cardInstallment.findMany({ where: { month, purchase: { sharedExpenseId: null } }, include: { purchase: { include: { shares: true } } } }),
+    prisma.cardInstallment.findMany({ where: { month: cardMonth, purchase: { sharedExpenseId: null } }, include: { purchase: { include: { shares: true } } } }),
     sharedCategoryCents(month),
-    loadStatementRates({ month }),
+    loadStatementRates({ month: cardMonth }),
     debtCategoryCents(month),
   ]);
   const out = new Map<string | null, number>();

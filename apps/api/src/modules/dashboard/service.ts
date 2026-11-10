@@ -20,7 +20,8 @@ export async function buildDashboard(month: string, months: number): Promise<Das
     accountBalances(),
     prisma.account.findMany({ where: { archived: false, kind: { not: "INVESTMENT" } } }),
     prisma.creditCard.findMany(),
-    categorySpending(month),
+    // Gráfico de categorías: tarjeta = resumen del mes anterior (lo que se paga este mes); el resto, del mes actual.
+    categorySpending(month, addMonths(month, -1)),
     buildBudgets(month),
     personsSummary(month),
     prisma.category.findMany({ select: { id: true, name: true } }),
@@ -67,7 +68,7 @@ export async function buildDashboard(month: string, months: number): Promise<Das
     ...investments.accounts.map((i) => ({ accountId: i.accountId, name: i.name, kind: "INVESTMENT" as const, balance: i.currentEstimate })),
   ];
 
-  // ---- categorías (devengado, incluye tarjeta): top 8 + Otras ----
+  // ---- categorías (resto del mes + tarjeta del mes anterior, que se paga este mes): top 8 + Otras ----
   const nameOf = new Map(categories.map((c) => [c.id, c.name]));
   const sorted = [...spending].filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
   const totalCats = sorted.reduce((a, [, c]) => a + c, 0);
