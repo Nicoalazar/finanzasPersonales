@@ -85,7 +85,7 @@ export function Dashboard() {
           )}
 
           <section className={`${card} space-y-2`}>
-            <h2 className="font-semibold">Gasto por categoría <span className="text-xs font-normal text-muted">· incluye lo que va por tarjeta</span></h2>
+            <h2 className="font-semibold">Gasto por categoría <span className="text-xs font-normal text-muted">· tarjeta del mes anterior (la que se paga este mes)</span></h2>
             {d.categories.length === 0 && <p className="text-sm text-muted">Sin gastos este mes.</p>}
             {d.categories.map((c) => (
               <div key={c.name} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,10rem)_1fr_11.5rem]">

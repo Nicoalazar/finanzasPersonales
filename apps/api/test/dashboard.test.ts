@@ -54,9 +54,13 @@ describe("dashboard", () => {
     expect(series[0]).toMatchObject({ income: 0, expense: 0, balance: 0 });
   });
 
-  it("categorías devengadas (con tarjeta, sin el pago del resumen), ordenadas", async () => {
+  it("categorías: gasto del mes + tarjeta del mes anterior (la que se paga este mes), ordenadas", async () => {
+    // marzo: la tarjeta es la de febrero (vacía), así que la cuota de Cine (marzo) no aparece
     const { categories } = await dash();
-    expect(categories.map((c: any) => [c.name, c.amount, c.pct])).toEqual([["Servicios", 100000, 65.8], ["Comida", 50000, 32.9], ["Ocio", 2000, 1.3]]);
+    expect(categories.map((c: any) => [c.name, c.amount, c.pct])).toEqual([["Servicios", 100000, 66.7], ["Comida", 50000, 33.3]]);
+    // abril: la cuota de marzo (mi 50 % de Cine = 2000) entra como Ocio
+    const abril = (await dash("2026-04")).categories;
+    expect(abril.find((c: any) => c.name === "Ocio")).toMatchObject({ amount: 2000 });
   });
 
   it("presupuestos en alerta, deudores y patrimonio", async () => {
@@ -75,7 +79,7 @@ describe("dashboard", () => {
     }
     const { categories } = await dash("2026-05");
     expect(categories).toHaveLength(9);
-    // mayo también trae la 3.ª cuota de "Cine" (Ocio 2000): 10 categorías con gasto → top 8 + Otras (11 + 10)
+    // mayo también trae la cuota de abril de "Cine" (Ocio 2000): 10 categorías con gasto → top 8 + Otras (11 + 10)
     expect(categories[0]).toMatchObject({ name: "Ocio", amount: 2000 });
     expect(categories.at(-1)).toMatchObject({ name: "Otras", amount: 21 });
     expect((await call("GET", "/api/dashboard?month=2026-05&months=1")).statusCode).toBe(400);
