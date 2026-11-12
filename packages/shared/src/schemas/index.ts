@@ -392,6 +392,8 @@ export interface DashboardDto {
   };
   series: DashboardSeriesPoint[];
   categories: { categoryId: string | null; name: string; amount: number; pct: number }[];
+  /** Todas las categorías con gasto (sin agrupar en "Otras"), de mayor a menor. */
+  allCategories: { categoryId: string | null; name: string; amount: number; pct: number }[];
   budgets: { totals: BudgetsDto["totals"]; flagged: BudgetRowDto[] };
   debtors: PersonSummaryDto[];
 }

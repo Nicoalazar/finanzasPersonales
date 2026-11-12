@@ -82,6 +82,11 @@ describe("dashboard", () => {
     // mayo también trae la cuota de abril de "Cine" (Ocio 2000): 10 categorías con gasto → top 8 + Otras (11 + 10)
     expect(categories[0]).toMatchObject({ name: "Ocio", amount: 2000 });
     expect(categories.at(-1)).toMatchObject({ name: "Otras", amount: 21 });
+    // la lista completa trae las 10 categorías sin agrupar, de mayor a menor
+    const { allCategories } = await dash("2026-05");
+    expect(allCategories).toHaveLength(10);
+    expect(allCategories.some((c: any) => c.name === "Otras")).toBe(false);
+    expect(allCategories.map((c: any) => c.amount)).toEqual([...allCategories.map((c: any) => c.amount)].sort((a: number, b: number) => b - a));
     expect((await call("GET", "/api/dashboard?month=2026-05&months=1")).statusCode).toBe(400);
     expect((await call("GET", "/api/dashboard?month=mayo")).statusCode).toBe(400);
   });
