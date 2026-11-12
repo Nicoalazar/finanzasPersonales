@@ -131,10 +131,9 @@ describe("grupo con persona asignada", () => {
     const viajes = (await call("POST", "/api/shared-groups", { name: "Viajes", myPercent: 40, personId: guille })).json();
     expect(viajes).toMatchObject({ name: "Viajes", personId: guille });
     expect((await call("POST", "/api/shared-groups", { name: "X", myPercent: 40, personId: "nope" })).statusCode).toBe(400);
-    const id = (await call("POST", "/api/recurring", { name: "Hotel", amount: 10000, startMonth: "2027-01", accountId: bank, categoryId: cat, sharedGroupId: viajes.id })).json().id;
+    const catViajes = (await call("POST", "/api/categories", { name: "Viajes", type: "EXPENSE" })).json().id;
+    const id = (await call("POST", "/api/recurring", { name: "Hotel", amount: 10000, startMonth: "2027-01", accountId: bank, categoryId: catViajes, sharedGroupId: viajes.id })).json().id;
     // sale de mi cuenta el total; la persona debe el 60%
-    const spentIn = async (m: string) => (await call("GET", `/api/budgets?month=${m}`)).json().rows.find((x: any) => x.categoryId === cat)?.spent ?? 0;
-    const spentBefore = await spentIn("2027-01");
     await gen("2027-01");
     expect(byDesc(await month("2027-01"), "Hotel")).toMatchObject({ amount: 10000 });
     const r = (await call("GET", "/api/recurring?month=2027-01")).json().find((x: any) => x.id === id);
@@ -144,7 +143,8 @@ describe("grupo con persona asignada", () => {
     const d = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json();
     expect(d.months[0].lines[0]).toMatchObject({ kind: "RECURRING", description: "Hotel", amount: 6000 });
     // en categorías cuenta solo mi parte (40 % = 4000), no lo que Guille me debe
-    expect(await spentIn("2027-01")).toBe(spentBefore + 4000);
+    const spent = (await call("GET", "/api/budgets?month=2027-01")).json().rows.find((x: any) => x.categoryId === catViajes)?.spent;
+    expect(spent).toBe(4000);
     // un mes salteado no se le cobra
     await call("DELETE", `/api/transactions/${byDesc(await month("2027-01"), "Hotel").id}`);
     const months = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json().months.map((m: any) => m.month);
