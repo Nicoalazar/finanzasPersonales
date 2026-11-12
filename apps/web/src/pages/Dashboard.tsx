@@ -22,10 +22,12 @@ export function Dashboard() {
   const [month, setMonth] = useState(currentMonth());
   const [months, setMonths] = useState(12);
   const [table, setTable] = useState(false);
+  const [allCats, setAllCats] = useState(false);
   const { data: d, isLoading } = useDashboard(month, months);
   const from = shiftMonth(month, -(months - 1));
 
-  const maxCat = Math.max(...(d?.categories.map((c) => c.amount) ?? [1]));
+  const cats = (allCats ? d?.allCategories : d?.categories) ?? [];
+  const maxCat = Math.max(...cats.map((c) => c.amount), 1);
   const k = d?.kpis;
 
   return (
@@ -85,10 +87,17 @@ export function Dashboard() {
           )}
 
           <section className={`${card} space-y-2`}>
-            <h2 className="font-semibold">Gasto por categoría <span className="text-xs font-normal text-muted">· tarjeta del mes anterior (la que se paga este mes)</span></h2>
-            {d.categories.length === 0 && <p className="text-sm text-muted">Sin gastos este mes.</p>}
-            {d.categories.map((c) => (
-              <div key={c.name} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,10rem)_1fr_11.5rem]">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-semibold">Gasto por categoría <span className="text-xs font-normal text-muted">· tarjeta del mes anterior (la que se paga este mes)</span></h2>
+              {d.allCategories.length > 8 && (
+                <button type="button" className="link shrink-0 text-xs" aria-pressed={allCats} onClick={() => setAllCats((v) => !v)}>
+                  {allCats ? "Ver menos" : `Ver todas (${d.allCategories.length})`}
+                </button>
+              )}
+            </div>
+            {cats.length === 0 && <p className="text-sm text-muted">Sin gastos este mes.</p>}
+            {cats.map((c) => (
+              <div key={c.categoryId ?? c.name} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,10rem)_1fr_11.5rem]">
                 <span className="truncate">{c.name}</span>
                 <div className="order-last col-span-2 h-2 overflow-hidden rounded-r bg-line sm:order-none sm:col-span-1 sm:h-2.5"><div className="h-full rounded-r" style={{ width: `${(c.amount / maxCat) * 100}%`, background: "var(--series-1)" }} /></div>
                 <span className="text-right tabular-nums">{formatMoney(c.amount)} <span className="text-xs text-muted">{pct.format(c.pct)}%</span></span>

@@ -72,7 +72,9 @@ export async function buildDashboard(month: string, months: number): Promise<Das
   const nameOf = new Map(categories.map((c) => [c.id, c.name]));
   const sorted = [...spending].filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
   const totalCats = sorted.reduce((a, [, c]) => a + c, 0);
-  const top = sorted.slice(0, 8).map(([id, c]) => ({ categoryId: id, name: id ? (nameOf.get(id) ?? "?") : "Sin categoría", amount: fromCents(c), pct: pct1(c, totalCats) ?? 0 }));
+  const row = ([id, c]: [string | null, number]) => ({ categoryId: id, name: id ? (nameOf.get(id) ?? "?") : "Sin categoría", amount: fromCents(c), pct: pct1(c, totalCats) ?? 0 });
+  const allCategories = sorted.map(row);
+  const top = sorted.slice(0, 8).map(row);
   const restCents = sorted.slice(8).reduce((a, [, c]) => a + c, 0);
   if (restCents > 0) top.push({ categoryId: null, name: "Otras", amount: fromCents(restCents), pct: pct1(restCents, totalCats) ?? 0 });
 
@@ -85,7 +87,7 @@ export async function buildDashboard(month: string, months: number): Promise<Das
       cardNet: fromCents(cardNetCents), cardRatio: pct1(cardNetCents, income),
     },
     netWorth: { cash: fromCents(cashCents), investments: fromCents(investCents), total: fromCents(cashCents + investCents), accounts: accountRows },
-    series, categories: top,
+    series, categories: top, allCategories,
     budgets: { totals: budgets.totals, flagged: budgets.rows.filter((r) => r.status === "OVER" || r.status === "WARN").sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0)).slice(0, 5) },
     debtors: people.filter((p) => p.balance > 0).sort((a, b) => b.balance - a.balance),
   };
