@@ -37,7 +37,12 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const n = series.length;
   const max = niceMax(Math.max(...series.map((s) => Math.max(s.cards + s.recurring + s.other, s.income))));
-  const y = (v: number) => M.t + IH - (v / max) * IH;
+  // Los reintegros bajan de la línea cero: lo apilado menos esa barra es el gasto neto (coincide con el Resultado).
+  const step = max / 4;
+  const negMax = Math.max(0, ...series.map((s) => s.reimbursements));
+  const min = -Math.ceil(negMax / step - 1e-9) * step;
+  const y = (v: number) => M.t + IH - ((v - min) / (max - min)) * IH;
+  const hpx = (v: number) => (v / (max - min)) * IH;
   const band = IW / n, barW = Math.min(24, band * 0.6);
   const cx = (i: number) => M.l + band * (i + 0.5);
   const every = xLabelEvery(n);
@@ -48,12 +53,13 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Gastos por mes, apilados por origen, e ingresos">
-        {yTicks(max).map((t) => (
+        {Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => min + step * i).map((t) => (
           <g key={t}>
             <line x1={M.l} x2={W - M.r} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" strokeWidth={1} />
             <text x={M.l - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--chart-axis)">{formatCompact(t)}</text>
           </g>
         ))}
+        {min < 0 && <line x1={M.l} x2={W - M.r} y1={y(0)} y2={y(0)} stroke="var(--chart-zero)" strokeWidth={1.5} />}
         {series.map((s, i) => {
           if (hover === i) return <rect key={`h${i}`} x={M.l + band * i} y={M.t} width={band} height={IH} fill="var(--chart-band)" />;
           return null;
@@ -63,8 +69,11 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
           const segs = STACK.map((st) => ({ ...st, v: s[st.key] })).filter((g) => g.v > 0);
           return (
             <g key={s.month}>
+              {s.reimbursements > 0 && (
+                <rect x={cx(i) - barW / 2} y={y(0) + GAP} width={barW} height={Math.max(hpx(s.reimbursements) - GAP, 1)} rx={2} fill="var(--chart-ink)" fillOpacity={0.35} />
+              )}
               {segs.map((g, k) => {
-                const full = (g.v / max) * IH;
+                const full = hpx(g.v);
                 const hgt = Math.max(full - (k < segs.length - 1 || segs.length > 1 ? GAP : 0), 1);
                 const yy = top - full;
                 top = yy;
@@ -94,12 +103,13 @@ export function StackedChart({ series }: { series: DashboardSeriesPoint[] }) {
           <div className="mb-1 font-semibold">{monthLabel(h.month)}</div>
           <Row color="var(--chart-ink)" label="Ingresos" value={h.income} line />
           {STACK.map((st) => <Row key={st.key} color={st.color} label={st.label} value={h[st.key]} />)}
-          <div className="mt-1 flex justify-between border-t pt-1"><span>Reintegros</span><span>{formatMoney(h.reimbursements)}</span></div>
+          <div className="mt-1 border-t pt-1"><Row color="var(--chart-ink)" label="Reintegros (bajo el cero)" value={h.reimbursements} /></div>
           <div className="flex justify-between font-medium"><span>Resultado</span><span>{formatMoney(h.balance)}</span></div>
         </Tooltip>
       )}
       <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Leyenda">
         {STACK.map((st) => <li key={st.key} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: st.color }} />{st.label}</li>)}
+        <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--chart-ink)", opacity: 0.35 }} />Reintegros</li>
         <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded" style={{ background: "var(--chart-ink)" }} />Ingresos</li>
       </ul>
     </div>
