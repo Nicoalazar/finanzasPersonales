@@ -3,11 +3,13 @@ import { prisma } from "../../plugins/db.js";
 import { num } from "../../lib.js";
 import { installmentArs, installmentShareCents, loadStatementRates } from "../cards/statement.js";
 import { sharedCategoryCents } from "../shared/service.js";
+import { loadRecurring, splitOf } from "../recurring/service.js";
 import { debtCategoryCents } from "../persons/service.js";
 
 /**
  * Gasto propio del mes por categoría (centavos; la clave null es "sin categoría").
  * Suma los movimientos de gasto y mi parte neta de las cuotas de tarjeta del resumen de ese mes.
+ * De los recurrentes de un grupo con persona (pago el total) descuenta lo que esa persona me debe.
  * `cardMonth` permite tomar las cuotas de tarjeta de otro mes (por defecto, el mismo).
  * El pago del resumen no se cuenta: no es un gasto nuevo, ya está en las compras.
  * De los gastos compartidos cuenta solo mi parte; mis pagos y el saldo con la pareja son caja, no categoría.
@@ -27,6 +29,15 @@ export async function categorySpending(month: string, cardMonth: string = month)
   const add = (k: string | null, cents: number) => out.set(k, (out.get(k) ?? 0) + cents);
 
   for (const t of txs) add(t.categoryId, toCents(num(t._sum.amount)));
+  // Recurrente de un grupo con persona: pago el total, pero lo que la persona me debe no es gasto mío.
+  const owedRecurring = await loadRecurring({ sharedGroup: { personId: { not: null } } });
+  if (owedRecurring.length) {
+    const paid = await prisma.transaction.findMany({ where: { period: month, type: "EXPENSE", recurringId: { in: owedRecurring.map((r) => r.id) } } });
+    for (const r of owedRecurring) {
+      const cents = paid.filter((t) => t.recurringId === r.id).reduce((a, t) => a + toCents(num(t.amount)), 0);
+      if (cents > 0) add(r.categoryId, -Math.min(splitOf(r, month).owedCents, cents));
+    }
+  }
   for (const i of installments) {
     const amount = installmentArs(i, rates).cents;
     const others = i.purchase.shares.reduce((a, s) => a + installmentShareCents(amount, { mode: s.mode, value: num(s.value) }), 0);
