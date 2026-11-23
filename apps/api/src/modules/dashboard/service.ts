@@ -2,7 +2,7 @@ import { addMonths, fromCents, installmentMonths, toCents, type DashboardDto, ty
 import { prisma } from "../../plugins/db.js";
 import { num } from "../../lib.js";
 import { accountBalances } from "../accounts/service.js";
-import { buildBudgets, categorySpending } from "../budgets/service.js";
+import { categorySpending } from "../spending/service.js";
 import { buildStatement } from "../cards/statement.js";
 import { buildInvestments } from "../investments/service.js";
 import { personsSummary } from "../persons/service.js";
@@ -11,7 +11,7 @@ const pct1 = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 1000) / 10 
 
 export async function buildDashboard(month: string, months: number): Promise<DashboardDto> {
   const range = installmentMonths(addMonths(month, -(months - 1)), months);
-  const [txs, investments, balances, accounts, cards, spending, budgets, people, categories] = await Promise.all([
+  const [txs, investments, balances, accounts, cards, spending, people, categories] = await Promise.all([
     prisma.transaction.findMany({
       where: { period: { in: range }, type: { in: ["INCOME", "EXPENSE"] } },
       select: { period: true, type: true, amount: true, statementId: true, recurringId: true, category: { select: { isReimbursement: true } } },
@@ -22,7 +22,6 @@ export async function buildDashboard(month: string, months: number): Promise<Das
     prisma.creditCard.findMany(),
     // Gráfico de categorías: tarjeta = resumen del mes anterior (lo que se paga este mes); el resto, del mes actual.
     categorySpending(month, addMonths(month, -1)),
-    buildBudgets(month),
     personsSummary(month),
     prisma.category.findMany({ select: { id: true, name: true } }),
   ]);
@@ -88,7 +87,6 @@ export async function buildDashboard(month: string, months: number): Promise<Das
     },
     netWorth: { cash: fromCents(cashCents), investments: fromCents(investCents), total: fromCents(cashCents + investCents), accounts: accountRows },
     series, categories: top, allCategories,
-    budgets: { totals: budgets.totals, flagged: budgets.rows.filter((r) => r.status === "OVER" || r.status === "WARN").sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0)).slice(0, 5) },
     debtors: people.filter((p) => p.balance > 0).sort((a, b) => b.balance - a.balance),
   };
 }

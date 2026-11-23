@@ -30,7 +30,6 @@ beforeAll(async () => {
   await call("POST", `/api/cards/${visa}/statement/pay`, { month: "2026-03", date: "2026-03-28", accountId: bank });
   await call("POST", `/api/persons/${ana}/payments`, { date: "2026-03-30", amount: 2000, accountId: bank });
   await call("POST", `/api/persons/${beto}/charges`, { description: "Prestamo", totalAmount: 500, firstMonth: "2026-03" });
-  await call("PUT", "/api/budgets", { categoryId: comida, month: "2026-03", amount: 50000 });
 });
 afterAll(async () => {
   await app.close();
@@ -63,10 +62,8 @@ describe("dashboard", () => {
     expect(abril.find((c: any) => c.name === "Ocio")).toMatchObject({ amount: 2000 });
   });
 
-  it("presupuestos en alerta, deudores y patrimonio", async () => {
+  it("deudores y patrimonio", async () => {
     const d = await dash();
-    expect(d.budgets.totals).toMatchObject({ over: 1, warn: 0 });
-    expect(d.budgets.flagged.map((r: any) => [r.name, r.status])).toEqual([["Comida", "OVER"]]);
     expect(d.debtors.map((p: any) => [p.name, p.balance])).toEqual([["Beto", 500]]); // Ana ya pagó todo
     expect(d.netWorth).toMatchObject({ cash: 947972, investments: 0, total: 947972 });
     expect(d.netWorth.accounts.reduce((a: number, x: any) => a + x.balance, 0)).toBeCloseTo(947972, 2);

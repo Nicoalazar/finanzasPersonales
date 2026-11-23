@@ -15,7 +15,7 @@ const ROWS = [
 ];
 const csv = (rows = ROWS) => [HEADER, ...rows].join("\n");
 const month = async (m = "2026-03") => (await call("GET", `/api/shared/month?month=${m}`)).json();
-const spent = async (id: string, m = "2026-03") => (await call("GET", `/api/budgets?month=${m}`)).json().rows.find((r: any) => r.categoryId === id)?.spent;
+const spent = async (id: string, m = "2026-03") => (await call("GET", `/api/spending?month=${m}`)).json().rows.find((r: any) => r.categoryId === id)?.spent;
 
 beforeAll(async () => {
   await resetDb();

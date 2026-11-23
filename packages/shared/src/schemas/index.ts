@@ -259,28 +259,46 @@ export interface SharedGroupDto {
   percent: number; percentIsOwn: boolean;
 }
 
-// ---- Presupuestos ----
-export const budgetStatusEnum = z.enum(["NONE", "OK", "WARN", "OVER"]);
-export const budgetInput = z.object({ categoryId: z.string().min(1), month: yearMonth, amount: z.number().finite().min(0) });
-export const budgetCopyInput = z
-  .object({
-    fromMonth: yearMonth,
-    toMonth: yearMonth,
-    increasePercent: z.number().finite().min(-100).max(1000).default(0),
-    overwrite: z.boolean().default(false),
-  })
-  .refine((c) => c.fromMonth !== c.toMonth, { message: "Los meses tienen que ser distintos", path: ["toMonth"] });
-export const budgetQuery = z.object({ month: yearMonth });
+// ---- Proyección ----
+export const projectionQuery = z.object({ from: yearMonth.optional(), months: z.coerce.number().int().min(1).max(24).default(12) });
+/** % mensual de inflación que se aplica a los gastos proyectados (recurrentes sin precio futuro cargado y variable). */
+export const projectionSettingsInput = z.object({ inflationPct: z.number().finite().min(0).max(100) });
+/** Monto mensual propio (a precios de hoy) que reemplaza al promedio de una categoría. */
+export const spendingEstimateInput = z.object({ categoryId: z.string().min(1), amount: z.number().finite().min(0) });
+export const spendingQuery = z.object({ month: yearMonth });
 
-export interface BudgetRowDto {
-  /** null = movimientos sin categoría (no se les puede fijar presupuesto) */
-  categoryId: string | null; name: string;
-  budget: number | null; spent: number; remaining: number | null;
-  pct: number | null; status: z.infer<typeof budgetStatusEnum>;
+export interface ProjectionMonthDto {
+  month: string;
+  /** sueldo neto (real si ya hay recibo; si no, el último neto de cada trabajo activo) y aguinaldo */
+  salary: number; sac: number; income: number;
+  /** mi parte de los recurrentes, mi neto de los resúmenes que vencen en el mes, cuotas de lo que le debo a otras personas, gasto variable estimado */
+  recurring: number; cards: number; debts: number; variable: number; expense: number;
+  balance: number; cumulative: number;
 }
-export interface BudgetsDto {
-  month: string; rows: BudgetRowDto[];
-  totals: { budget: number; spentInBudgeted: number; spentTotal: number; pct: number | null; status: z.infer<typeof budgetStatusEnum>; warn: number; over: number };
+export interface ProjectionCategoryDto {
+  /** null = gastos sin categoría (no admite monto propio) */
+  categoryId: string | null; name: string;
+  /** promedio mensual del gasto variable en los meses de base */
+  average: number;
+  /** monto propio cargado (reemplaza al promedio) */
+  estimate: number | null;
+  /** lo que se usa para proyectar, a precios de hoy */
+  base: number;
+  /** gasto variable real del primer mes proyectado (en curso) */
+  current: number;
+}
+export interface ProjectionDto {
+  /** primer mes proyectado (por defecto, el actual); de ahí se miden la inflación y el promedio */
+  from: string; inflationPct: number;
+  /** meses usados para el promedio; partial = solo el mes en curso (no hay meses completos con gastos) */
+  baseMonths: string[]; partial: boolean;
+  jobs: { jobId: string; name: string; net: number; informal: boolean }[];
+  months: ProjectionMonthDto[];
+  categories: ProjectionCategoryDto[];
+}
+export interface SpendingDto {
+  month: string; total: number;
+  rows: { categoryId: string | null; name: string; spent: number }[];
 }
 
 // ---- Sueldos (solo bruto y neto) ----
@@ -394,7 +412,6 @@ export interface DashboardDto {
   categories: { categoryId: string | null; name: string; amount: number; pct: number }[];
   /** Todas las categorías con gasto (sin agrupar en "Otras"), de mayor a menor. */
   allCategories: { categoryId: string | null; name: string; amount: number; pct: number }[];
-  budgets: { totals: BudgetsDto["totals"]; flagged: BudgetRowDto[] };
   debtors: PersonSummaryDto[];
 }
 

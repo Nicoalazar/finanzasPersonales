@@ -9,7 +9,7 @@ const link = ({ isActive }: { isActive: boolean }) =>
 
 const LINKS = [
   ["/", "Resumen"], ["/mes", "Mes"], ["/tarjetas", "Tarjetas"], ["/compartidos", "Compartidos"], ["/inversiones", "Inversiones"],
-  ["/sueldos", "Sueldos"], ["/presupuestos", "Presupuestos"], ["/recurrentes", "Recurrentes"], ["/personas", "Personas"], ["/config", "Configuración"],
+  ["/sueldos", "Sueldos"], ["/proyeccion", "Proyección"], ["/recurrentes", "Recurrentes"], ["/personas", "Personas"], ["/config", "Configuración"],
 ] as const;
 
 export function Layout() {

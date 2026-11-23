@@ -6,13 +6,13 @@ Monorepo pnpm: `apps/api` (Fastify + Prisma + Postgres), `apps/web` (React + Vit
 ## Qué hace
 | Pantalla | Para qué |
 |---|---|
-| **Resumen** | Resultado del mes, gasto/ingreso, tarjetas/ingreso, patrimonio; gastos por mes (tarjetas / recurrentes / otros), resultado acumulado, gasto por categoría, presupuestos en alerta y quién te debe. Exporta CSV. |
+| **Resumen** | Resultado del mes, gasto/ingreso, tarjetas/ingreso, patrimonio; gastos por mes (tarjetas / recurrentes / otros), resultado acumulado, gasto por categoría, resultado proyectado de los próximos meses y quién te debe. Exporta CSV. |
 | **Mes** | Movimientos del mes, pendientes (los recurrentes se generan solos al abrir el mes), gasto neto = gasto − reintegros. |
 | **Tarjetas** | Compras en cuotas (y en USD, en un solo pago) con reparto a terceros, resumen mensual (7‰, ajuste, reintegros), cierre y vencimiento editables mes a mes, pago del resumen, compromisos de los próximos 12 meses. |
 | **Compartidos** | Gastos comunes con tu pareja cargados en el Google Form: se importan del CSV de respuestas (subiendo el archivo o con el link publicado), cuentan **tu parte** según el % del mes del grupo *Hogar* y calculan el saldo. Tus pagos salen de una cuenta o de una tarjeta; lo que te devuelve entra como *Reintegros*. |
 | **Personas** | Cuánto te debe cada una, detalle por mes, cargos manuales en cuotas y pagos (entran como ingreso en la categoría *Reintegros*). |
 | **Recurrentes** | Alquiler, servicios, suscripciones; frecuencia mensual/bimestral/anual, cambios de precio con vigencia, grupos compartidos (*Hogar*) con **% editable mes a mes** y una persona asignada: lo recurrente del grupo lo pagás entero y la persona te debe lo que no es tu %. |
-| **Presupuestos** | Por categoría y mes, con alerta al 80 % y al 100 %; copiar del mes anterior con aumento. |
+| **Proyección** | Ingresos y gastos de los próximos 6, 12 o 24 meses: sueldo (último neto de cada trabajo) + aguinaldo en junio y diciembre; tu parte de los recurrentes, tu neto de las cuotas de tarjeta ya compradas (en el mes en que vence el resumen), deudas en cuotas y gasto variable por categoría (promedio de los últimos 3 meses completos con gastos, o un monto propio). Inflación mensual editable para recurrentes y variable. Resultado y acumulado por mes. |
 | **Sueldos** | Varios trabajos, cada uno con su recibo mensual (bruto y neto) + SAC; los trabajos en negro llevan solo el neto. El neto se carga solo como ingreso. |
 | **Inversiones** | Depósitos y retiros, saldo real anotado, ganancia = real − teórico. |
 
@@ -71,8 +71,8 @@ Notas: el plan free de Render duerme el servicio tras 15 min sin uso (el primer 
 ## Compras en dólares
 - Al cargar una compra elegí **USD** y el monto en dólares. Es siempre en un solo pago, y si es de un tercero, es la compra completa (100%).
 - El formulario sugiere la cotización: el **dólar oficial (punta vendedora)** que consulta el servidor a `FX_API_URL` (por defecto DolarApi, `https://dolarapi.com/v1/dolares/oficial`, campo `venta`), cacheada una hora. Es solo una estimación: se puede editar, y si la API no responde se usa la última cotización cargada en un resumen de esa tarjeta, o se pide a mano. Nunca bloquea guardar la compra.
-- Cuando llega el resumen del banco, cargá la **cotización del dólar del resumen** (una sola por resumen, la del PDF) y las percepciones en *Ajuste*. Esa cotización reemplaza a las estimadas en todo: total, lo que te debe cada persona, presupuestos y compromisos. No se puede pagar un resumen con consumos USD sin cargarla.
-- El tercero debe `USD × cotización del resumen`; la percepción sobre consumos en dólares queda a tu cargo (va en *Ajuste* y en tu neto propio, pero no en ninguna categoría de presupuesto).
+- Cuando llega el resumen del banco, cargá la **cotización del dólar del resumen** (una sola por resumen, la del PDF) y las percepciones en *Ajuste*. Esa cotización reemplaza a las estimadas en todo: total, lo que te debe cada persona, gasto por categoría, proyección y compromisos. No se puede pagar un resumen con consumos USD sin cargarla.
+- El tercero debe `USD × cotización del resumen`; la percepción sobre consumos en dólares queda a tu cargo (va en *Ajuste* y en tu neto propio, pero no en ninguna categoría de gasto).
 - Con el resumen pagado, la cotización y el Ajuste quedan bloqueados; deshacé el pago para editarlos.
 
 ## Backups

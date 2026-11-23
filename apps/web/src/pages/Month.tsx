@@ -4,7 +4,7 @@ import { TransactionForm } from "../components/TransactionForm";
 import { MonthNav } from "../components/MonthNav";
 import { StatRow, iconBtn, iconBtnDanger } from "../components/Stats";
 import { currentMonth, formatDay, formatMoney } from "../lib/format";
-import { useAccounts, useBudgets, useCategories, useDeleteTransaction, useGenerateMonth, useTransactions, useUpdateTransaction } from "../lib/queries";
+import { useAccounts, useCategories, useDeleteTransaction, useGenerateMonth, useTransactions, useUpdateTransaction } from "../lib/queries";
 
 export function Month() {
   const [month, setMonth] = useState(currentMonth());
@@ -18,7 +18,6 @@ export function Month() {
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "Sin categoría";
   const accName = (id: string) => accounts.find((a) => a.id === id)?.name ?? "?";
   const s = data?.summary;
-  const alerts = useBudgets(month).data?.totals;
 
   return (
     <main className="space-y-4">
@@ -36,12 +35,6 @@ export function Month() {
         { label: "Resultado", value: formatMoney(s?.balance ?? 0), cls: (s?.balance ?? 0) < 0 ? "text-neg" : "text-ink" },
       ]} />
 
-      {alerts && (alerts.over > 0 || alerts.warn > 0) && (
-        <Link to="/presupuestos" className="card block border-warn/25 bg-warn-soft px-4 py-2 text-sm text-warn-ink hover:border-warn/50">
-          Presupuesto: {alerts.over > 0 && <b className="text-neg">{alerts.over} superada{alerts.over > 1 ? "s" : ""}</b>}
-          {alerts.over > 0 && alerts.warn > 0 && " · "}{alerts.warn > 0 && <b>{alerts.warn} cerca del límite</b>} →
-        </Link>
-      )}
 
       {adding && <TransactionForm onDone={() => setAdding(false)} />}
 

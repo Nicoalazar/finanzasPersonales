@@ -101,17 +101,17 @@ export const useSetGroupPercent = () =>
 export const useClearGroupPercent = () =>
   useInvalidatingMutation((v: { id: string; month: string }) => api(`/shared-groups/${v.id}/percent/${v.month}`, { method: "DELETE" }));
 
-// ---- Presupuestos ----
-import type { BudgetsDto } from "@finanzas/shared";
+// ---- Proyección ----
+import type { ProjectionDto } from "@finanzas/shared";
 
-export const useBudgets = (month: string) => useQuery({ queryKey: ["budgets", month], queryFn: () => api<BudgetsDto>(`/budgets?month=${month}`) });
-export const useSetBudget = () =>
-  useInvalidatingMutation((v: { categoryId: string; month: string; amount: number }) => api("/budgets", { method: "PUT", json: v }));
-export const useDeleteBudget = () =>
-  useInvalidatingMutation((v: { categoryId: string; month: string }) => api(`/budgets/${v.categoryId}/${v.month}`, { method: "DELETE" }));
-export const useCopyBudgets = () =>
-  useInvalidatingMutation((v: { fromMonth: string; toMonth: string; increasePercent: number; overwrite: boolean }) =>
-    api<{ copied: number; skipped: number }>("/budgets/copy", { method: "POST", json: v }));
+export const useProjection = (months: number) =>
+  useQuery({ queryKey: ["projection", months], queryFn: () => api<ProjectionDto>(`/projection?months=${months}`) });
+export const useSetInflation = () =>
+  useInvalidatingMutation((v: { inflationPct: number }) => api("/projection/settings", { method: "PUT", json: v }));
+export const useSetEstimate = () =>
+  useInvalidatingMutation((v: { categoryId: string; amount: number }) => api("/projection/estimates", { method: "PUT", json: v }));
+export const useDeleteEstimate = () =>
+  useInvalidatingMutation((categoryId: string) => api(`/projection/estimates/${categoryId}`, { method: "DELETE" }));
 
 // ---- Sueldos ----
 import type { JobDto, PayslipDto, SacSuggestionDto } from "@finanzas/shared";
