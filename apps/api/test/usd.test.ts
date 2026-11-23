@@ -111,8 +111,8 @@ describe("resumen con consumos USD", () => {
     expect(st.byPerson).toEqual([{ personId: camila, name: "Camila", amount: 120000 }]);
   });
 
-  it("presupuestos y personas usan los pesos, no los dólares", async () => {
-    const b = (await call("GET", "/api/budgets?month=2026-03")).json();
+  it("gasto por categoría y personas usan los pesos, no los dólares", async () => {
+    const b = (await call("GET", "/api/spending?month=2026-03")).json();
     expect(b.rows.find((r: any) => r.categoryId === viajes).spent).toBe(60000);
     // Personas imputa al mes en que vence el resumen: el de marzo (cierre 25, vence el 5) cuenta en abril
     expect((await call("GET", "/api/persons/summary?asOf=2026-03")).json()[0].accrued).toBe(0);
@@ -153,8 +153,8 @@ describe("resumen con consumos USD", () => {
     expect(detail.months[0].lines[0].estimated).toBeUndefined();
   });
 
-  it("presupuestos con la cotización real", async () => {
-    const b = (await call("GET", "/api/budgets?month=2026-03")).json();
+  it("gasto por categoría con la cotización real", async () => {
+    const b = (await call("GET", "/api/spending?month=2026-03")).json();
     expect(b.rows.find((r: any) => r.categoryId === viajes).spent).toBe(62500);
     // el curso es 100% de Camila: no suma a ninguna categoría mía. Sin categoría quedan Sillas (10.000),
     // el Spotify de Master (USD 50 a la estimada 1230,5 = 61.525, ese resumen no tiene cotización real) y 50 en pesos.

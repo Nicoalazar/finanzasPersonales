@@ -77,23 +77,23 @@ describe("recurrentes", () => {
   });
 });
 
-import { budgetStatus, increaseCents } from "./budget.js";
+import { inflateCents, isSacMonth, monthsBetween } from "./projection.js";
 
-describe("presupuestos", () => {
-  it("alerta al 80 % y al 100 %", () => {
-    expect(budgetStatus(7999, 10000)).toEqual({ pct: 80, status: "OK" });
-    expect(budgetStatus(8000, 10000)).toEqual({ pct: 80, status: "WARN" });
-    expect(budgetStatus(9999, 10000).status).toBe("WARN");
-    expect(budgetStatus(10000, 10000)).toEqual({ pct: 100, status: "OVER" });
-    expect(budgetStatus(15000, 10000)).toEqual({ pct: 150, status: "OVER" });
+describe("proyección", () => {
+  it("cuenta meses entre dos YYYY-MM", () => {
+    expect(monthsBetween("2026-11", "2027-02")).toBe(3);
+    expect(monthsBetween("2026-11", "2026-11")).toBe(0);
+    expect(monthsBetween("2027-01", "2026-12")).toBe(-1);
   });
-  it("sin presupuesto no hay estado", () => {
-    expect(budgetStatus(500, null)).toEqual({ pct: null, status: "NONE" });
-    expect(budgetStatus(500, 0).status).toBe("NONE");
+  it("aplica inflación mensual compuesta y no toca el pasado", () => {
+    expect(inflateCents(100000, 3, 0)).toBe(100000);
+    expect(inflateCents(100000, 3, -2)).toBe(100000);
+    expect(inflateCents(100000, 3, 1)).toBe(103000);
+    expect(inflateCents(100000, 3, 2)).toBe(106090);
+    expect(inflateCents(100000, 0, 12)).toBe(100000);
   });
-  it("copia con +5 %", () => {
-    expect(increaseCents(1000000, 5)).toBe(1050000);
-    expect(increaseCents(33333, 5)).toBe(35000);
+  it("aguinaldo en junio y diciembre", () => {
+    expect(["2026-06", "2026-12", "2026-07"].map(isSacMonth)).toEqual([true, true, false]);
   });
 });
 

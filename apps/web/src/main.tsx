@@ -9,7 +9,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Cards } from "./pages/Cards";
 import { Investments } from "./pages/Investments";
 import { Salary } from "./pages/Salary";
-import { Budgets } from "./pages/Budgets";
+import { Projection } from "./pages/Projection";
 import { Recurring } from "./pages/Recurring";
 import { Persons } from "./pages/Persons";
 import { Shared } from "./pages/Shared";
@@ -31,7 +31,8 @@ function Root() {
         <Route path="tarjetas" element={<Cards />} />
         <Route path="inversiones" element={<Investments />} />
         <Route path="sueldos" element={<Salary />} />
-        <Route path="presupuestos" element={<Budgets />} />
+        <Route path="proyeccion" element={<Projection />} />
+        <Route path="presupuestos" element={<Navigate to="/proyeccion" replace />} />
         <Route path="recurrentes" element={<Recurring />} />
         <Route path="personas" element={<Persons />} />
         <Route path="compartidos" element={<Shared />} />

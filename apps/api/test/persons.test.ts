@@ -80,7 +80,7 @@ describe("vencimiento editado del resumen", () => {
 
 describe("lo que otra persona pagó por mí", () => {
   let tomas: string, comida: string;
-  const budgetSpent = async (m: string) => (await call("GET", `/api/budgets?month=${m}`)).json().rows.find((r: any) => r.categoryId === comida)?.spent;
+  const budgetSpent = async (m: string) => (await call("GET", `/api/spending?month=${m}`)).json().rows.find((r: any) => r.categoryId === comida)?.spent;
 
   it("es una deuda mía: saldo negativo y gasto en su categoría ese mes", async () => {
     tomas = (await call("POST", "/api/persons", { name: "Tomás" })).json().id;

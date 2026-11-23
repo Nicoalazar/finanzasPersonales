@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CumulativeChart, SeriesTable, StackedChart } from "../components/charts";
 import { MonthNav } from "../components/MonthNav";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../lib/format";
-import { useDashboard } from "../lib/queries";
+import { useDashboard, useProjection } from "../lib/queries";
 
 const pct = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
 const card = "card p-4";
@@ -29,6 +29,8 @@ export function Dashboard() {
   const cats = (allCats ? d?.allCategories : d?.categories) ?? [];
   const maxCat = Math.max(...cats.map((c) => c.amount), 1);
   const k = d?.kpis;
+  // resultado proyectado de los próximos 3 meses (sin el mes en curso)
+  const next = useProjection(12).data?.months.slice(1, 4);
 
   return (
     <main className="space-y-4">
@@ -107,13 +109,12 @@ export function Dashboard() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <section className={`${card} space-y-2`}>
-              <div className="flex items-baseline justify-between"><h2 className="font-semibold">Presupuestos</h2><Link to="/presupuestos" className="link text-xs">Ver todos</Link></div>
-              {d.budgets.totals.budget === 0 && <p className="text-sm text-muted">No cargaste presupuestos para este mes.</p>}
-              {d.budgets.totals.budget > 0 && d.budgets.flagged.length === 0 && <p className="text-sm text-pos">Todo dentro del presupuesto.</p>}
-              {d.budgets.flagged.map((r) => (
-                <div key={r.categoryId} className="flex items-center justify-between text-sm">
-                  <span>{r.name}</span>
-                  <span className={r.status === "OVER" ? "font-medium text-neg" : "text-warn"}>{r.status === "OVER" ? "Superado" : "Cerca"} · {pct.format(r.pct ?? 0)}%</span>
+              <div className="flex items-baseline justify-between"><h2 className="font-semibold">Próximos meses</h2><Link to="/proyeccion" className="link text-xs">Ver proyección</Link></div>
+              {!next && <p className="text-sm text-muted">Calculando…</p>}
+              {next?.map((m) => (
+                <div key={m.month} className="flex justify-between text-sm">
+                  <span>{monthLabel(m.month)}</span>
+                  <span className={`tabular-nums ${m.balance < 0 ? "font-medium text-neg" : "text-pos"}`}>{formatMoney(Math.round(m.balance))}</span>
                 </div>
               ))}
             </section>

@@ -95,6 +95,7 @@ model Category {
   isReimbursement Boolean @default(false)
   transactions Transaction[]
   budgets   Budget[]
+  estimate  SpendingEstimate?
   purchases CardPurchase[]
   recurring RecurringExpense[]
   sharedKinds SharedKind[]
@@ -312,6 +313,7 @@ model RecurringPriceChange {
   @@unique([recurringId, fromMonth])
 }
 
+/// Topes por categoría y mes de la versión anterior de Presupuestos. Ya no se usan; se conservan los datos.
 model Budget {
   id         String   @id @default(cuid())
   categoryId String
@@ -402,4 +404,19 @@ model SharedExpense {
   createdAt   DateTime     @default(now())
 
   @@index([month])
+}
+
+/// Gasto variable mensual propio de una categoría (a precios de hoy): reemplaza al promedio en la proyección.
+model SpendingEstimate {
+  id         String   @id @default(cuid())
+  categoryId String   @unique
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount     Decimal  @db.Decimal(14, 2)
+}
+
+/// Configuración de la proyección (una sola fila, id "default").
+model ProjectionSettings {
+  id           String  @id @default("default")
+  /// % mensual de inflación aplicado a los gastos proyectados
+  inflationPct Decimal @default(0) @db.Decimal(5, 2)
 }

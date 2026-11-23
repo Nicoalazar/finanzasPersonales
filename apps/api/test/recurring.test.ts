@@ -143,7 +143,7 @@ describe("grupo con persona asignada", () => {
     const d = (await call("GET", `/api/persons/${guille}?asOf=2027-01`)).json();
     expect(d.months[0].lines[0]).toMatchObject({ kind: "RECURRING", description: "Hotel", amount: 6000 });
     // en categorías cuenta solo mi parte (40 % = 4000), no lo que Guille me debe
-    const spent = (await call("GET", "/api/budgets?month=2027-01")).json().rows.find((x: any) => x.categoryId === catViajes)?.spent;
+    const spent = (await call("GET", "/api/spending?month=2027-01")).json().rows.find((x: any) => x.categoryId === catViajes)?.spent;
     expect(spent).toBe(4000);
     // un mes salteado no se le cobra
     await call("DELETE", `/api/transactions/${byDesc(await month("2027-01"), "Hotel").id}`);
